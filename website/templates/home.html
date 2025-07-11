@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<h1 align="center">Notes</h1>
+<ul class="list-group list-group-flush" id="notes">
+  {% for note in user.notes %}
+  <li class="list-group-item">
+    {{ note.data }}
+    <button class="btn btn-secondary btn-sm edit-note-btn" data-id="{{ note.id }}" data-text="{{ note.data }}">Edit</button>
+    <button class="close" onClick="deleteNote({{ note.id }})">
+      <span aria-hidden="true">&times;</span>
+    </button>
+  </li>
+  {% endfor %}
+</ul>
+
+<form method="POST" id="noteForm">
+  <input type="hidden" id="note_id" name="note_id">
+  <textarea name="note" id="note" class="form-control"></textarea>
+  <br />
+  <div align="center">
+    <button type="submit" class="btn btn-primary">Save Note</button>
+  </div>
+</form>
+<br />
+<form method="POST" action="/delete-account">
+  <div align="center">
+    <button type="submit" class="btn btn-danger">Delete Account</button>
+  </div>
+</form>
+
+{% if get_flashed_messages() %}
+<script>
+  // Clear the form after submission
+  document.getElementById('note').value = ''; // Clear the note textarea
+  document.getElementById('note_id').value = ''; // Reset the note ID field
+</script>
+{% endif %}
+
+<script>
+  // JavaScript for handling the edit functionality
+  document.querySelectorAll('.edit-note-btn').forEach(button => {
+    button.addEventListener('click', function() {
+      const noteId = this.getAttribute('data-id');
+      const noteText = this.getAttribute('data-text');
+
+      // Set the note's data in the form
+      document.getElementById('note_id').value = noteId;
+      document.getElementById('note').value = noteText;
+    });
+  });
+
+  // AJAX for deleting a note
+  function deleteNote(noteId) {
+    fetch('/delete-note', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ noteId: noteId })
+    })
+    .then(response => response.json())
+    .then(data => {
+      location.reload();  // Reload page to reflect changes
+    })
+    .catch(error => console.error('Error:', error));
+  }
+</script>
+{% endblock %}
