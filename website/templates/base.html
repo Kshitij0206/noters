@@ -23,13 +23,12 @@
       <div class="collapse navbar-collapse" id="navbar">
         <div class="navbar-nav">
           {% if user.is_authenticated %}
-          <a class="nav-item nav-link" id="logout" href="/logout">Logout</a>
-          <a class="nav-item nav-link text-danger" href="#" onclick="event.preventDefault(); document.getElementById('delete-account-form').submit();">Delete Account</a>
-<form id="delete-account-form" method="POST" action="/delete-account" style="display: none;"></form>
-
+            <a class="nav-item nav-link" id="logout" href="/logout">Logout</a>
+            <a class="nav-item nav-link text-danger" href="#" onclick="event.preventDefault(); document.getElementById('delete-account-form').submit();">Delete Account</a>
+            <form id="delete-account-form" method="POST" action="/delete-account" style="display: none;"></form>
           {% else %}
-          <a class="nav-item nav-link" id="login" href="/login">Login</a>
-          <a class="nav-item nav-link" id="signUp" href="/sign-up">Sign Up</a>
+            <a class="nav-item nav-link" id="login" href="/login">Login</a>
+            <a class="nav-item nav-link" id="signUp" href="/sign-up">Sign Up</a>
           {% endif %}
         </div>
       </div>
