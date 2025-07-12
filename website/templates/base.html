@@ -25,7 +25,7 @@
           {% if user.is_authenticated %}
           <a class="nav-item nav-link" id="logout" href="/logout">Logout</a>
           <form method="POST" action="/delete-account" style="display:inline;">
-            <button type="submit" class="btn btn-danger btn-sm ml-2">Delete Account</button>
+            <button type="submit" class="nav-item nav-linknav-item nav-link">Delete Account</button>
           </form>
           {% else %}
           <a class="nav-item nav-link" id="login" href="/login">Login</a>
