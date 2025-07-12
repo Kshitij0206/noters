@@ -6,7 +6,12 @@ import json
 
 views = Blueprint('views', __name__)
 
-@views.route('/', methods=['GET', 'POST'])
+# Redirect root URL "/" to login page
+@views.route('/')
+def index():
+    return redirect(url_for('auth.login'))
+
+@views.route('/home', methods=['GET', 'POST'])  # Moved home route to /home instead of /
 @login_required
 def home():
     if request.method == 'POST':
@@ -71,4 +76,4 @@ def delete_account():
         return redirect(url_for('auth.logout'))
     else:
         flash('Account deletion failed.', category='error')
-    return redirect(url_for('views.home'))
+    return redirect(url_for('auth.login'))  # Fixed incorrect reference
