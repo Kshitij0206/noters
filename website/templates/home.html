@@ -39,29 +39,47 @@
 <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 
-<script>
-  // Initialize Quill editor
-const quill = new Quill('#editor-container', {
-  theme: 'snow',
-  placeholder: 'Write your note here...',
-  modules: {
-    toolbar: [
-      [{ 'size': ['12px', '14px', '16px', '18px', '24px', '32px', '48px'] }],
-      ['bold', 'italic', 'underline'],
-      [{ 'color': [] }, { 'background': [] }],
-      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-      ['clean']
-    ]
+<style>
+  .ql-snow .ql-picker.ql-size .ql-picker-item::before,
+  .ql-snow .ql-picker.ql-size .ql-picker-label::before {
+    content: attr(data-value);
   }
-});
+</style>
 
+<script>
+  // Import pixel-based sizes
+  const Size = Quill.import('attributors/style/size');
+  Size.whitelist = ['12px', '14px', '16px', '18px', '24px', '32px', '48px'];
+  Quill.register(Size, true);
+
+  // Initialize Quill editor with pixel sizes
+  const quill = new Quill('#editor-container', {
+    theme: 'snow',
+    placeholder: 'Write your note here...',
+    modules: {
+      toolbar: [
+        [{ 'size': Size.whitelist }],
+        ['bold', 'italic', 'underline'],
+        [{ 'color': [] }, { 'background': [] }],
+        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+        ['clean']
+      ]
+    }
+  });
+
+  // Ensure pixel size formatting persists after pressing Enter
+  quill.keyboard.addBinding({ key: 13 }, {
+    handler: function(range, context) {
+      const format = quill.getFormat(range.index);
+      quill.insertText(range.index, '\n', format, Quill.sources.USER);
+      quill.setSelection(range.index + 1, Quill.sources.SILENT);
+    }
+  });
 
   // Save note
   const noteForm = document.getElementById('noteForm');
   noteForm.onsubmit = function () {
     document.getElementById('note').value = JSON.stringify(quill.getContents());
-
-    // Reset form shortly after POST
     setTimeout(() => {
       document.getElementById('note_id').value = '';
       quill.setContents([]);
@@ -113,7 +131,7 @@ const quill = new Quill('#editor-container', {
             quill.setContents([]);
           }
 
-          // Remove note from the DOM without reload
+          // Remove note from DOM
           const noteItem = document.getElementById('note-' + noteId)?.closest('li');
           if (noteItem) noteItem.remove();
         } else {
@@ -125,7 +143,7 @@ const quill = new Quill('#editor-container', {
   });
 
   // Render note previews
-  const userNotes = {{ notes_json | tojson }};
+  const userNotes = {{ notes_json | tojson | safe }};
   userNotes.forEach(note => {
     try {
       const container = document.getElementById('note-' + note.id);
