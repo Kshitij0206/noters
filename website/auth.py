@@ -7,6 +7,7 @@ from .models import User
 from . import db
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, login_required, logout_user, current_user
+import os # Added for environment variables
 
 auth = Blueprint('auth', __name__)
 
@@ -37,6 +38,11 @@ def logout():
 @auth.route('/sign-up', methods=['GET', 'POST'])
 def sign_up():
     otp_sent = False
+
+    # Load sender credentials from environment variables (recommended)
+    # Fallback to hardcoded values for demonstration, but not for production
+    sender_email = os.environ.get('SENDER_EMAIL', 'kshitijcodes7@gmail.com')
+    sender_password = os.environ.get('SENDER_PASSWORD', 'hgtkohaniqxwpguo') # Replace with your actual App Password
 
     if request.method == 'POST':
         email = request.form.get('email')
@@ -69,8 +75,6 @@ def sign_up():
                 }
 
                 # Send OTP via email
-                sender_email = 'kshitijcodes7@gmail.com'
-                sender_password = 'hgtkohaniqxwpguo'
                 subject = "Email Verification OTP"
                 body = f"Hello {first_name},\n\nYour OTP for sign-up is: {otp}\n\nThank you!"
 
@@ -124,8 +128,13 @@ def sign_up():
                                        firstName=first_name, otp_sent=otp_sent)
 
     return render_template("sign-up.html", user=current_user)
+
 @auth.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
+    # Load sender credentials from environment variables (recommended)
+    sender_email = os.environ.get('SENDER_EMAIL', 'kshitijcodes7@gmail.com')
+    sender_password = os.environ.get('SENDER_PASSWORD', 'hgtkohaniqxwpguo') # Replace with your actual App Password
+
     if request.method == 'POST':
         email = request.form.get('email')
         user = User.query.filter_by(email=email).first()
@@ -135,8 +144,6 @@ def forgot_password():
             session['reset_email'] = email
 
             # Send OTP
-            sender_email = 'kshitijcodes7@gmail.com'
-            sender_password = 'hgtkohaniqxwpguo'
             subject = "Password Reset OTP"
             body = f"Your OTP for resetting the password is: {otp}"
 
@@ -160,6 +167,7 @@ def forgot_password():
             flash('Email not found.', category='error')
 
     return render_template('forgot_password.html', user=current_user)
+
 @auth.route('/reset-password', methods=['GET', 'POST'])
 def reset_password():
     if request.method == 'POST':

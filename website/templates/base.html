@@ -3,86 +3,69 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link
-      rel="stylesheet"
-      href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
-      crossorigin="anonymous"
-    />
-    <link
-      rel="stylesheet"
-      href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"
-      crossorigin="anonymous"
-    />
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdn.quilljs.com/1.3.6/quill.snow.css" />
     <title>{% block title %}Home{% endblock %}</title>
   </head>
   <body>
+    {% set current = current_user %}
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbar">
-        <span class="navbar-toggler-icon"></span>
-      </button>
       <div class="collapse navbar-collapse" id="navbar">
         <div class="navbar-nav">
-          {% if user.is_authenticated %}
-            <a class="nav-item nav-link" id="logout" href="/logout">Logout</a>
-            <a class="nav-item nav-link text-danger" href="#" onclick="deleteAccount()">Delete Account</a>
+          {% if current.is_authenticated %}
+            <a class="nav-item nav-link" href="/logout">Logout</a>
+            <form id="delete-account-form" method="POST" action="/delete-account" style="display:none;"></form>
+            <a class="nav-item nav-link text-danger" href="#" onclick="event.preventDefault(); document.getElementById('delete-account-form').submit();">Delete Account</a>
           {% else %}
-            <a class="nav-item nav-link" id="login" href="/login">Login</a>
-            <a class="nav-item nav-link" id="signUp" href="/sign-up">Sign Up</a>
+            <a class="nav-item nav-link" href="/login">Login</a>
+            <a class="nav-item nav-link" href="/sign-up">Sign Up</a>
           {% endif %}
         </div>
       </div>
     </nav>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      {% for category, message in messages %}
-        <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
-          {{ message }}
-          <button type="button" class="close" data-dismiss="alert">
-            <span aria-hidden="true">&times;</span>
-          </button>
-        </div>
-      {% endfor %}
-    {% endif %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+          </div>
+        {% endfor %}
+      {% endif %}
     {% endwith %}
 
-    <div class="container">{% block content %} {% endblock %}</div>
+    <div class="container">{% block content %}{% endblock %}</div>
 
-    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" crossorigin="anonymous"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" crossorigin="anonymous"></script>
-
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"></script>
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+    
     {% block javascript %}
-    <script type="text/javascript">
-  function deleteNote(noteId) {
-    fetch("/delete-note", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ noteId: noteId }),
-      credentials: "include"  // 🔒 important: keeps session cookies
-    })
-    .then(res => {
-      if (res.ok) {
-        window.location.reload();
-      } else {
-        alert("Failed to delete note.");
-      }
-    });
-  }
-      function deleteAccount() {
-        if (confirm("Are you sure you want to delete your account?")) {
-          fetch("/delete-account", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Handle account deletion only - leave note handling to home.html
+        document.querySelector('.nav-item.text-danger')?.addEventListener('click', function(e) {
+          e.preventDefault();
+          if (confirm("Are you sure you want to delete your account?")) {
+            document.getElementById('delete-account-form').submit();
+          }
+        });
+
+        // Prevent duplicate form submissions
+        document.querySelectorAll('form').forEach(form => {
+          form.addEventListener('submit', function(e) {
+            const submitBtn = this.querySelector('[type="submit"]');
+            if (submitBtn) {
+              submitBtn.disabled = true;
+              setTimeout(() => {
+                submitBtn.disabled = false;
+              }, 3000);
             }
-          }).then(() => {
-            window.location.href = "/login";
           });
-        }
-      }
+        });
+      });
     </script>
     {% endblock %}
   </body>
