@@ -124,3 +124,69 @@ def sign_up():
                                        firstName=first_name, otp_sent=otp_sent)
 
     return render_template("sign-up.html", user=current_user)
+@auth.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        user = User.query.filter_by(email=email).first()
+        if user:
+            otp = str(random.randint(100000, 999999))
+            session['reset_otp'] = otp
+            session['reset_email'] = email
+
+            # Send OTP
+            sender_email = 'kshitijcodes7@gmail.com'
+            sender_password = 'hgtkohaniqxwpguo'
+            subject = "Password Reset OTP"
+            body = f"Your OTP for resetting the password is: {otp}"
+
+            msg = MIMEMultipart()
+            msg['From'] = sender_email
+            msg['To'] = email
+            msg['Subject'] = subject
+            msg.attach(MIMEText(body, 'plain'))
+
+            try:
+                server = smtplib.SMTP('smtp.gmail.com', 587)
+                server.starttls()
+                server.login(sender_email, sender_password)
+                server.sendmail(sender_email, email, msg.as_string())
+                server.quit()
+                flash('OTP sent to your email.', category='info')
+                return redirect(url_for('auth.reset_password'))
+            except Exception as e:
+                flash(f'Failed to send OTP: {e}', category='error')
+        else:
+            flash('Email not found.', category='error')
+
+    return render_template('forgot_password.html', user=current_user)
+@auth.route('/reset-password', methods=['GET', 'POST'])
+def reset_password():
+    if request.method == 'POST':
+        entered_otp = request.form.get('otp')
+        new_password1 = request.form.get('password1')
+        new_password2 = request.form.get('password2')
+        session_email = session.get('reset_email')
+        session_otp = session.get('reset_otp')
+
+        if not session_email or not session_otp:
+            flash('Session expired. Try again.', category='error')
+            return redirect(url_for('auth.forgot_password'))
+
+        if entered_otp != session_otp:
+            flash('Incorrect OTP.', category='error')
+        elif new_password1 != new_password2:
+            flash('Passwords do not match.', category='error')
+        elif len(new_password1) < 7:
+            flash('Password must be at least 7 characters.', category='error')
+        else:
+            user = User.query.filter_by(email=session_email).first()
+            if user:
+                user.password = generate_password_hash(new_password1, method='pbkdf2:sha256')
+                db.session.commit()
+                session.pop('reset_otp', None)
+                session.pop('reset_email', None)
+                flash('Password reset successful! Please log in.', category='success')
+                return redirect(url_for('auth.login'))
+    
+    return render_template('reset_password.html', user=current_user)
