@@ -41,7 +41,7 @@
 
 <script>
   // Initialize Quill editor
-  const quill = new Quill('#editor-container', {
+ const quill = new Quill('#editor-container', {
     theme: 'snow',
     placeholder: 'Write your note here...',
     modules: {
@@ -54,6 +54,22 @@
       ]
     }
   });
+
+  // ✅ Fix: Retain heading format after pressing Enter
+  const bindings = quill.keyboard.bindings[13]; // 13 = Enter key
+  if (bindings) {
+    bindings.forEach(binding => {
+      if (binding.format && binding.handler) {
+        binding.unbind?.(); // Remove the default enter handler that resets format
+      }
+    });
+
+    // Replace with new handler to retain formats
+    quill.keyboard.addBinding({ key: 13 }, function (range, context) {
+      quill.insertText(range.index, '\n', context.format);
+      quill.setSelection(range.index + 1, Quill.sources.SILENT);
+    });
+  }
 
   // Save note
   const noteForm = document.getElementById('noteForm');
