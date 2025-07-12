@@ -12,7 +12,8 @@
       <div class="d-flex justify-content-end mt-2">
         <button class="btn btn-secondary btn-sm edit-note-btn"
           data-id="{{ note.id }}"
-          data-text='{{ note.data | safe }}'>
+          data-text='{{ note.data | safe }}'
+          data-bg="{{ note.bg_color or 'white' }}">
           Edit
         </button>
         <button class="btn btn-danger btn-sm delete-note-btn"
@@ -26,8 +27,20 @@
 
 <form method="POST" id="noteForm" class="mt-4">
   <input type="hidden" id="note_id" name="note_id">
+  <div class="form-group">
+    <label for="bg-color-picker">Note Background Color:</label>
+    <select id="bg-color-picker" class="form-control" style="max-width: 200px;">
+      <option value="white">White</option>
+      <option value="#f8f9fa">Light Gray</option>
+      <option value="#fff3cd">Yellow</option>
+      <option value="#d4edda">Green</option>
+      <option value="#f8d7da">Red</option>
+      <option value="#d1ecf1">Blue</option>
+    </select>
+  </div>
   <div id="editor-container" style="height: 200px;"></div>
   <input type="hidden" name="note" id="note">
+  <input type="hidden" name="note_bg" id="note_bg">
   <br>
   <div align="center">
     <button type="submit" class="btn btn-primary">Save Note</button>
@@ -47,12 +60,10 @@
 </style>
 
 <script>
-  // Import pixel-based sizes
   const Size = Quill.import('attributors/style/size');
   Size.whitelist = ['12px', '14px', '16px', '18px', '24px', '32px', '48px'];
   Quill.register(Size, true);
 
-  // Initialize Quill editor with pixel sizes
   const quill = new Quill('#editor-container', {
     theme: 'snow',
     placeholder: 'Write your note here...',
@@ -67,7 +78,7 @@
     }
   });
 
-  // Ensure pixel size formatting persists after pressing Enter
+  // Handle Enter to retain formatting
   quill.keyboard.addBinding({ key: 13 }, {
     handler: function(range, context) {
       const format = quill.getFormat(range.index);
@@ -76,13 +87,24 @@
     }
   });
 
+  // Background color change
+  document.getElementById('bg-color-picker').addEventListener('change', e => {
+    const bg = e.target.value;
+    document.querySelector('#editor-container .ql-editor').style.backgroundColor = bg;
+    document.getElementById('note_bg').value = bg;
+  });
+
   // Save note
   const noteForm = document.getElementById('noteForm');
   noteForm.onsubmit = function () {
     document.getElementById('note').value = JSON.stringify(quill.getContents());
+    document.getElementById('note_bg').value = document.querySelector('#editor-container .ql-editor').style.backgroundColor || 'white';
+
     setTimeout(() => {
       document.getElementById('note_id').value = '';
       quill.setContents([]);
+      document.querySelector('#editor-container .ql-editor').style.backgroundColor = 'white';
+      document.getElementById('bg-color-picker').value = 'white';
     }, 100);
   };
 
@@ -91,11 +113,17 @@
     button.addEventListener('click', () => {
       const noteId = button.dataset.id;
       const noteJson = button.dataset.text;
+      const noteBg = button.dataset.bg || 'white';
 
       try {
         const noteDelta = JSON.parse(noteJson);
         quill.setContents(noteDelta);
         document.getElementById('note_id').value = noteId;
+
+        document.querySelector('#editor-container .ql-editor').style.backgroundColor = noteBg;
+        document.getElementById('bg-color-picker').value = noteBg;
+        document.getElementById('note_bg').value = noteBg;
+
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } catch (e) {
         console.error("Invalid note data for editing:", e);
@@ -111,27 +139,16 @@
 
       fetch('/delete-note', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ noteId })
       })
-      .then(res => {
-        if (res.status === 401) {
-          window.location.href = "/login";
-          return;
-        }
-        return res.json();
-      })
+      .then(res => res.status === 401 ? window.location.href = "/login" : res.json())
       .then(data => {
-        if (data && data.message === 'Note deleted') {
-          // If user was editing this note, reset form
+        if (data?.message === 'Note deleted') {
           if (document.getElementById('note_id').value === noteId) {
             document.getElementById('note_id').value = '';
             quill.setContents([]);
           }
-
-          // Remove note from DOM
           const noteItem = document.getElementById('note-' + noteId)?.closest('li');
           if (noteItem) noteItem.remove();
         } else {
@@ -150,6 +167,9 @@
       const tempQuill = new Quill(document.createElement('div'));
       tempQuill.setContents(JSON.parse(note.data));
       container.innerHTML = tempQuill.root.innerHTML;
+      container.style.backgroundColor = note.bg_color || 'white';
+      container.style.padding = "10px";
+      container.style.borderRadius = "5px";
     } catch (e) {
       console.error("Failed to render note preview:", e);
     }
