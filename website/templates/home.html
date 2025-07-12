@@ -2,21 +2,26 @@
 {% block title %}Home{% endblock %}
 {% set hide_home = true %}
 
-
 {% block content %}
 <h1 align="center">Hey, {{ user.first_name }}</h1>
 
+{% if edit_note %}
 <ul class="list-group list-group-flush" id="notes">
-  {% for note in user.notes %}
-    <li class="list-group-item">
-      <div class="note-preview" id="note-{{ note.id }}"></div>
-      <!-- Edit and Delete buttons removed -->
-    </li>
-  {% endfor %}
+  <li class="list-group-item">
+    <div class="note-preview" id="note-{{ edit_note.id }}"></div>
+  </li>
 </ul>
+{% endif %}
 
 <form method="POST" id="noteForm" class="mt-4">
   <input type="hidden" id="note_id" name="note_id">
+  <div class="form-group">
+    <label for="tags">Tags (comma separated):</label>
+    <input type="text" class="form-control" name="tags" id="tags" placeholder="e.g. school, urgent">
+  </div>
+  <div class="form-group">
+    <label><input type="checkbox" name="is_pinned" id="is_pinned"> Pin this note</label>
+  </div>
   <div class="form-group">
     <label for="bg-color-picker">Note Background Color:</label>
     <select id="bg-color-picker" class="form-control" style="max-width: 200px;">
@@ -51,7 +56,6 @@
   .ql-snow .ql-picker.ql-size .ql-picker-label::before {
     content: attr(data-value);
   }
-
   .note-preview * {
     font-size: 14px !important;
   }
@@ -84,7 +88,6 @@
     }
   });
 
-  // Enter key retains formatting
   quill.keyboard.addBinding({ key: 13 }, {
     handler: function(range, context) {
       const format = quill.getFormat(range.index);
@@ -93,46 +96,55 @@
     }
   });
 
-  // Background color picker
   document.getElementById('bg-color-picker').addEventListener('change', e => {
     const bg = e.target.value;
     document.querySelector('#editor-container .ql-editor').style.backgroundColor = bg;
     document.getElementById('note_bg').value = bg;
   });
 
-  // Save Note
   document.getElementById('noteForm').onsubmit = function () {
     document.getElementById('note').value = JSON.stringify(quill.getContents());
-    document.getElementById('note_bg').value = document.querySelector('#editor-container .ql-editor').style.backgroundColor || 'white';
-
+    document.getElementById('note_bg').value = document.getElementById('bg-color-picker').value;
     setTimeout(() => {
-      document.getElementById('note_id').value = '';
       quill.setContents([]);
       document.querySelector('#editor-container .ql-editor').style.backgroundColor = 'white';
       document.getElementById('bg-color-picker').value = 'white';
     }, 100);
   };
 
-  // NOTE: Edit and Delete functionality scripts removed
-
-  // Render note previews
-  const userNotes = {{ notes_json | tojson | safe }};
-  userNotes.forEach(note => {
-    try {
-      const container = document.getElementById('note-' + note.id);
-      const tempQuill = new Quill(document.createElement('div'));
-      tempQuill.setContents(JSON.parse(note.data));
-      container.innerHTML = tempQuill.root.innerHTML;
-      container.style.backgroundColor = note.bg_color || 'white';
-      container.style.padding = "10px";
-      container.style.borderRadius = "5px";
-    } catch (e) {
-      console.error("Failed to render note preview:", e);
-    }
-  });
-
   {% if edit_note %}
-  // Edit note block removed because editing is disabled
+    const colorMap = {
+      "white": "White",
+      "#f8f9fa": "Light Gray",
+      "#fff3cd": "Yellow",
+      "#d4edda": "Green",
+      "#f8d7da": "Red",
+      "#d1ecf1": "Blue",
+      "#e1bee7": "Purple",
+      "#ffccbc": "Orange",
+      "#c8e6c9": "Mint",
+      "#f0f4c3": "Lime"
+    };
+
+    const editData = {{ edit_note.data | safe }};
+    const bgColor = "{{ edit_note.bg_color }}";
+
+    quill.setContents(editData);
+    document.getElementById('note_id').value = "{{ edit_note.id }}";
+    document.querySelector('#editor-container .ql-editor').style.backgroundColor = bgColor;
+    document.getElementById('note_bg').value = bgColor;
+
+    const bgSelect = document.getElementById('bg-color-picker');
+    if (bgColor in colorMap) {
+      bgSelect.value = bgColor;
+    } else {
+      const newOption = new Option(bgColor, bgColor, true, true);
+      bgSelect.add(newOption);
+      bgSelect.value = bgColor;
+    }
+
+    document.getElementById('tags').value = "{{ edit_note.tags }}";
+    document.getElementById('is_pinned').checked = {{ 'true' if edit_note.is_pinned else 'false' }};
   {% endif %}
 </script>
 {% endblock %}
