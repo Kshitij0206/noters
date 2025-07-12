@@ -4,7 +4,7 @@ from flask_login import login_required, current_user
 from .models import Note, User
 from . import db
 import json
-import logging # Added for logging
+import logging
 
 # Configure logging (can be done once in __init__.py or a config file)
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -24,32 +24,41 @@ def home():
     if request.method == 'POST':
         note_id = request.form.get('note_id')
         note_text = request.form.get('note')
+        note_bg = request.form.get('note_bg') or 'white'
 
         if not note_text or len(note_text.strip()) < 1:
             flash('Note is too short!', category='error')
 
         elif note_id and note_id.strip() != "":
-            # Editing existing note
             note = Note.query.get(int(note_id))
             if note and note.user_id == current_user.id:
                 note.data = note_text
+                note.bg_color = note_bg
                 db.session.commit()
                 flash('Note updated!', category='success')
             else:
                 flash('Note not found or permission denied.', category='error')
 
         else:
-            # Adding new note (note_id is empty or invalid)
-            new_note = Note(data=note_text, user_id=current_user.id)
+            new_note = Note(data=note_text, bg_color=note_bg, user_id=current_user.id)
             db.session.add(new_note)
             db.session.commit()
             flash('Note added!', category='success')
 
-    # Serialize notes as JSON for JS
-    notes_json = [{'id': note.id, 'data': note.data} for note in current_user.notes]
+    # Handle edit redirect from saved_notes
+    edit_id = request.args.get('edit')
+    edit_note = None
+    if edit_id:
+        note = Note.query.get(int(edit_id))
+        if note and note.user_id == current_user.id:
+            edit_note = {
+                'id': note.id,
+                'data': note.data,
+                'bg_color': note.bg_color or 'white'
+            }
 
-    return render_template("home.html", user=current_user, notes_json=notes_json)
-
+    notes_json = [{'id': n.id, 'data': n.data, 'bg_color': n.bg_color} for n in current_user.notes]
+    return render_template("home.html", user=current_user, notes_json=notes_json, edit_note=edit_note)
 
 @views.route('/delete-note', methods=['POST'])
 @login_required
@@ -61,7 +70,6 @@ def delete_note():
         if note and note.user_id == current_user.id:
             db.session.delete(note)
             db.session.commit()
-            print("Note deleted!")
             return jsonify({'message': 'Note deleted'})
         else:
             return jsonify({'message': 'Note not found or permission denied'}), 403
@@ -75,7 +83,6 @@ def delete_account():
     user_id = current_user.id
     user = User.query.get(user_id)
     if user:
-        # Delete all notes by the user
         Note.query.filter_by(user_id=user_id).delete()
         db.session.delete(user)
         db.session.commit()
@@ -83,4 +90,22 @@ def delete_account():
         return redirect(url_for('auth.logout'))
     else:
         flash('Account deletion failed.', category='error')
-    return redirect(url_for('auth.login'))
+        return redirect(url_for('auth.login'))
+@views.route('/saved-notes')
+@login_required
+def saved_notes():
+    notes = current_user.notes
+    notes_json = [
+        {
+            'id': note.id,
+            'data': note.data,
+            'bg_color': note.bg_color or 'white'
+        }
+        for note in notes
+    ]
+    return render_template(
+        'saved_notes.html',
+        notes=notes,
+        notes_json=notes_json,
+        user=current_user
+    )

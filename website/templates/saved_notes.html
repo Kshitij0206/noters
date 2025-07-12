@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}All Saved Notes{% endblock %}
+{% set hide_saved_notes = true %}
+
+
+{% block content %}
+
+<h2 class="text-center mb-4">All Saved Notes</h2>
+
+<div class="container">
+  <div class="row">
+    {% for note in notes %}
+      <div class="col-md-6 mb-4">
+        <div class="p-3 shadow-sm rounded" id="note-{{ note.id }}" style="background-color: {{ note.bg_color or 'white' }}"></div>
+        <div class="d-flex justify-content-end mt-2">
+          <a href="{{ url_for('views.home') }}?edit={{ note.id }}" class="btn btn-secondary btn-sm me-2">Edit</a>
+          <button class="btn btn-danger btn-sm delete-note-btn" data-id="{{ note.id }}">Delete</button>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+<script>
+  const savedNotes = {{ notes_json | tojson | safe }};
+  savedNotes.forEach(note => {
+    try {
+      const container = document.getElementById('note-' + note.id);
+      const tempQuill = new Quill(document.createElement('div'));
+      tempQuill.setContents(JSON.parse(note.data));
+      container.innerHTML = tempQuill.root.innerHTML;
+    } catch (e) {
+      console.error("Failed to render saved note:", e);
+    }
+  });
+
+  // Delete Note Handler
+  document.querySelectorAll('.delete-note-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const noteId = button.dataset.id;
+
+      fetch('/delete-note', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ noteId })
+      })
+      .then(res => res.status === 401 ? window.location.href = "/login" : res.json())
+      .then(data => {
+        if (data?.message === 'Note deleted') {
+          const noteDiv = document.getElementById('note-' + noteId)?.closest('.col-md-6');
+          if (noteDiv) noteDiv.remove();
+        } else {
+          alert('Error deleting note: ' + (data?.message || 'Unknown error.'));
+        }
+      })
+      .catch(err => console.error('Delete error:', err));
+    });
+  });
+</script>
+{% endblock %}

@@ -26,15 +26,25 @@
       <!-- Collapsible Content -->
       <div class="collapse navbar-collapse" id="navbarNav">
         <div class="navbar-nav ml-auto">
-          {% if current.is_authenticated %}
-            <a class="nav-item nav-link" href="/logout">Logout</a>
-            <form id="delete-account-form" method="POST" action="/delete-account" style="display:none;"></form>
-            <a class="nav-item nav-link text-danger" href="#" onclick="event.preventDefault(); document.getElementById('delete-account-form').submit();">Delete Account</a>
-          {% else %}
-            <a class="nav-item nav-link" href="/login">Login</a>
-            <a class="nav-item nav-link" href="/sign-up">Sign Up</a>
-          {% endif %}
-        </div>
+  {% if current.is_authenticated %}
+    <a class="nav-item nav-link" href="/logout">Logout</a>
+    
+    {% if not hide_home %}
+      <a class="nav-item nav-link" href="/home">Home</a>
+    {% endif %}
+    
+    {% if not hide_saved_notes %}
+      <a class="nav-link" href="{{ url_for('views.saved_notes') }}">Saved Notes</a>
+    {% endif %}
+    
+    <form id="delete-account-form" method="POST" action="/delete-account" style="display:none;"></form>
+    <a class="nav-item nav-link text-danger" href="#" onclick="event.preventDefault(); document.getElementById('delete-account-form').submit();">Delete Account</a>
+  {% else %}
+    <a class="nav-item nav-link" href="/login">Login</a>
+    <a class="nav-item nav-link" href="/sign-up">Sign Up</a>
+  {% endif %}
+</div>
+
       </div>
     </nav>
 
