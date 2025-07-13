@@ -21,6 +21,12 @@
     {% for note in notes %}
       <div class="col-md-6 mb-4 note-card" data-tags="{{ note.tags }}">
         <div class="p-3 shadow-sm rounded position-relative" id="note-{{ note.id }}" style="background-color: {{ note.bg_color or 'white' }}">
+          <small class="text-muted">
+Created: {{ note.date|ist }}<br>
+Updated: {{ note.last_updated|ist }}
+
+</small>
+
           {% if note.is_pinned %}
             <span style="position: absolute; top: 8px; right: 12px; font-size: 20px;" title="Pinned">📌</span>
           {% else %}

@@ -15,13 +15,20 @@
 
 <form method="POST" id="noteForm" class="mt-4">
   <input type="hidden" id="note_id" name="note_id">
+
   <div class="form-group">
     <label for="tags">Tags (comma separated):</label>
     <input type="text" class="form-control" name="tags" id="tags" placeholder="e.g. school, urgent">
   </div>
+
   <div class="form-group">
     <label><input type="checkbox" name="is_pinned" id="is_pinned"> Pin this note</label>
   </div>
+
+  <div class="form-group">
+    <label><input type="checkbox" name="is_completed" id="is_completed"> Mark as completed</label>
+  </div>
+
   <div class="form-group">
     <label for="bg-color-picker">Note Background Color:</label>
     <select id="bg-color-picker" class="form-control" style="max-width: 200px;">
@@ -37,9 +44,11 @@
       <option value="#f0f4c3">Lime</option>
     </select>
   </div>
+
   <div id="editor-container" style="height: 200px;"></div>
   <input type="hidden" name="note" id="note">
   <input type="hidden" name="note_bg" id="note_bg">
+
   <br>
   <div align="center">
     <button type="submit" class="btn btn-primary">Save Note</button>
@@ -60,8 +69,35 @@
     font-size: 14px !important;
   }
 </style>
+<style>
+  .ql-snow .ql-picker.ql-font .ql-picker-label::before,
+  .ql-snow .ql-picker.ql-font .ql-picker-item::before {
+    content: attr(data-value);
+    font-family: attr(data-value);
+  }
+
+  .ql-font-serif         { font-family: serif; }
+  .ql-font-monospace     { font-family: monospace; }
+  .ql-font-sans-serif    { font-family: sans-serif; }
+  .ql-font-arial         { font-family: Arial, sans-serif; }
+  .ql-font-times-new-roman { font-family: "Times New Roman", serif; }
+  .ql-font-courier-new   { font-family: "Courier New", monospace; }
+  .ql-font-georgia       { font-family: Georgia, serif; }
+  .ql-font-tahoma        { font-family: Tahoma, sans-serif; }
+  .ql-font-verdana       { font-family: Verdana, sans-serif; }
+  .ql-font-impact        { font-family: Impact, sans-serif; }
+  .ql-font-comic-sans    { font-family: "Comic Sans MS", cursive; }
+</style>
 
 <script>
+  const Font = Quill.import('formats/font');
+  Font.whitelist = [
+    'serif', 'monospace', 'sans-serif',
+    'arial', 'times-new-roman', 'courier-new', 'georgia',
+    'tahoma', 'verdana', 'impact', 'comic-sans'
+  ];
+  Quill.register(Font, true);
+
   const Size = Quill.import('attributors/style/size');
   Size.whitelist = ['12px', '14px', '16px', '18px', '24px', '32px', '48px'];
   Quill.register(Size, true);
@@ -71,40 +107,27 @@
     placeholder: 'Write your note here...',
     modules: {
       toolbar: [
-        [{ 'size': Size.whitelist }],
+        [{ font: Font.whitelist }],
+        [{ size: Size.whitelist }],
         ['bold', 'italic', 'underline'],
-        [
-          { 'color': ['#000', '#e60000', '#ff9900', '#ffff00', '#008a00', '#0066cc', '#9933ff', '#ffffff'] },
-          {
-            'background': [
-              '#ffffff', '#ffeb3b', '#f44336', '#4caf50', '#2196f3',
-              '#9c27b0', '#000000', '#cccccc', '#e1bee7', '#c8e6c9', '#f0f4c3'
-            ]
-          }
-        ],
         [{ 'list': 'ordered' }, { 'list': 'bullet' }],
         ['clean']
       ]
     }
   });
-
-  quill.keyboard.addBinding({ key: 13 }, {
-    handler: function(range, context) {
-      const format = quill.getFormat(range.index);
-      quill.insertText(range.index, '\n', format, Quill.sources.USER);
-      quill.setSelection(range.index + 1, Quill.sources.SILENT);
-    }
-  });
-
+  // Background color picker
   document.getElementById('bg-color-picker').addEventListener('change', e => {
     const bg = e.target.value;
     document.querySelector('#editor-container .ql-editor').style.backgroundColor = bg;
     document.getElementById('note_bg').value = bg;
   });
 
+  // Submit form
   document.getElementById('noteForm').onsubmit = function () {
     document.getElementById('note').value = JSON.stringify(quill.getContents());
     document.getElementById('note_bg').value = document.getElementById('bg-color-picker').value;
+
+    // Reset form
     setTimeout(() => {
       quill.setContents([]);
       document.querySelector('#editor-container .ql-editor').style.backgroundColor = 'white';
@@ -113,6 +136,7 @@
   };
 
   {% if edit_note %}
+    // Prefill form if editing
     const colorMap = {
       "white": "White",
       "#f8f9fa": "Light Gray",
@@ -135,7 +159,7 @@
     document.getElementById('note_bg').value = bgColor;
 
     const bgSelect = document.getElementById('bg-color-picker');
-    if (bgColor in colorMap) {
+    if (colorMap[bgColor]) {
       bgSelect.value = bgColor;
     } else {
       const newOption = new Option(bgColor, bgColor, true, true);
@@ -145,6 +169,7 @@
 
     document.getElementById('tags').value = "{{ edit_note.tags }}";
     document.getElementById('is_pinned').checked = {{ 'true' if edit_note.is_pinned else 'false' }};
+    document.getElementById('is_completed').checked = {{ 'true' if edit_note.is_completed else 'false' }};
   {% endif %}
 </script>
 {% endblock %}

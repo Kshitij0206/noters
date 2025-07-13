@@ -1,11 +1,12 @@
-from flask import Blueprint, render_template, request, flash, jsonify, redirect, url_for, send_file
+from flask import Blueprint, render_template, request, flash, jsonify, redirect, url_for, send_file, Response
 from flask_login import login_required, current_user
 from .models import Note, User
 from . import db
 import json, io
 from xhtml2pdf import pisa
 from datetime import datetime
-from flask import Response
+import pytz
+
 
 views = Blueprint('views', __name__)
 
@@ -23,7 +24,8 @@ def home():
         note_text = request.form.get('note')
         note_bg = request.form.get('note_bg') or 'white'
         tags = request.form.get('tags') or ''
-        is_pinned = 'is_pinned' in request.form  # Proper checkbox check
+        is_pinned = 'is_pinned' in request.form
+        is_completed = 'is_completed' in request.form
 
         if not note_text or len(note_text.strip()) < 1:
             flash('Note is too short!', category='error')
@@ -34,6 +36,7 @@ def home():
                 note.bg_color = note_bg
                 note.tags = tags
                 note.is_pinned = is_pinned
+                note.is_completed = is_completed
                 db.session.commit()
                 flash('Note updated!', category='success')
             else:
@@ -44,7 +47,8 @@ def home():
                 bg_color=note_bg,
                 user_id=current_user.id,
                 tags=tags,
-                is_pinned=is_pinned
+                is_pinned=is_pinned,
+                is_completed=is_completed
             )
             db.session.add(new_note)
             db.session.commit()
@@ -58,13 +62,26 @@ def home():
             flash('Note not found or permission denied.', category='error')
             return redirect(url_for('views.home'))
 
+    # Convert datetimes to IST
+    ist = pytz.timezone('Asia/Kolkata')
+    for note in current_user.notes:
+        note.date = note.date.astimezone(ist)
+        note.last_updated = note.last_updated.astimezone(ist)
+
     notes_json = [{'id': n.id, 'data': n.data, 'bg_color': n.bg_color or 'white'} for n in current_user.notes]
     return render_template("home.html", user=current_user, notes_json=notes_json, edit_note=edit_note)
+
 
 @views.route('/saved-notes')
 @login_required
 def saved_notes():
     notes = Note.query.filter_by(user_id=current_user.id).order_by(Note.is_pinned.desc(), Note.date.desc()).all()
+
+    # Convert UTC to IST
+    ist = pytz.timezone('Asia/Kolkata')
+    for note in notes:
+        note.date = note.date.astimezone(ist)
+        note.last_updated = note.last_updated.astimezone(ist)
 
     all_tags = set()
     for note in notes:
@@ -151,17 +168,13 @@ def download_pdf(note_id):
     result.seek(0)
     return send_file(result, download_name=f"note_{note_id}.pdf", as_attachment=True)
 
-
-
 @views.route('/sitemap.xml', methods=['GET'])
 def sitemap():
-    # Query all notes
     notes = Note.query.all()
 
     sitemap_xml = '''<?xml version="1.0" encoding="UTF-8"?>\n'''
     sitemap_xml += '''<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'''
 
-    # Home and Saved Notes
     static_urls = [
         {"loc": "https://noters.online/", "priority": "1.0"},
         {"loc": "https://noters.online/home", "priority": "0.9"},
@@ -175,7 +188,6 @@ def sitemap():
       <priority>{url["priority"]}</priority>
     </url>'''
 
-    # Add each note download URL
     for note in notes:
         sitemap_xml += f'''
     <url>
@@ -185,7 +197,6 @@ def sitemap():
     </url>'''
 
     sitemap_xml += '\n</urlset>'
-
     return Response(sitemap_xml, mimetype='application/xml')
 
 @views.route('/robots.txt')
