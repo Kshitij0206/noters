@@ -188,3 +188,9 @@ def sitemap():
 
     return Response(sitemap_xml, mimetype='application/xml')
 
+@views.route('/robots.txt')
+def robots():
+    return Response(
+        "User-agent: *\nAllow: /\nSitemap: https://noters.online/sitemap.xml",
+        mimetype='text/plain'
+    )
