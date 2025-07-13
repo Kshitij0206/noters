@@ -5,6 +5,7 @@ from . import db
 import json, io
 from xhtml2pdf import pisa
 from datetime import datetime
+from flask import Response
 
 views = Blueprint('views', __name__)
 
@@ -149,3 +150,41 @@ def download_pdf(note_id):
 
     result.seek(0)
     return send_file(result, download_name=f"note_{note_id}.pdf", as_attachment=True)
+
+
+
+@views.route('/sitemap.xml', methods=['GET'])
+def sitemap():
+    # Query all notes
+    notes = Note.query.all()
+
+    sitemap_xml = '''<?xml version="1.0" encoding="UTF-8"?>\n'''
+    sitemap_xml += '''<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'''
+
+    # Home and Saved Notes
+    static_urls = [
+        {"loc": "https://noters.online/", "priority": "1.0"},
+        {"loc": "https://noters.online/home", "priority": "0.9"},
+        {"loc": "https://noters.online/saved-notes", "priority": "0.8"}
+    ]
+    for url in static_urls:
+        sitemap_xml += f'''
+    <url>
+      <loc>{url["loc"]}</loc>
+      <changefreq>daily</changefreq>
+      <priority>{url["priority"]}</priority>
+    </url>'''
+
+    # Add each note download URL
+    for note in notes:
+        sitemap_xml += f'''
+    <url>
+      <loc>https://noters.online/download-pdf/{note.id}</loc>
+      <changefreq>monthly</changefreq>
+      <priority>0.5</priority>
+    </url>'''
+
+    sitemap_xml += '\n</urlset>'
+
+    return Response(sitemap_xml, mimetype='application/xml')
+
