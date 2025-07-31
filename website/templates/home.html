@@ -5,13 +5,13 @@
 {% block content %}
 <h1 align="center">Hey, {{ user.first_name }}</h1>
 
-{% if edit_note %}
+<!-- {% if edit_note %}
 <ul class="list-group list-group-flush" id="notes">
   <li class="list-group-item">
-    <div class="note-preview" id="note-{{ edit_note.id }}"></div>
+    <div class="note-preview" id="note-{{ edit_note.id }}">{{ edit_note.data | safe }}</div>
   </li>
 </ul>
-{% endif %}
+{% endif %} -->
 
 <form method="POST" id="noteForm" class="mt-4">
   <input type="hidden" id="note_id" name="note_id">
@@ -22,11 +22,13 @@
   </div>
 
   <div class="form-group">
-    <label><input type="checkbox" name="is_pinned" id="is_pinned"> Pin this note</label>
+    <label for="note_password">Lock this note with a password (optional):</label>
+    <input type="password" class="form-control" id="note_password" name="password" placeholder="Enter password to lock note">
+    <small class="form-text text-muted">Leave empty for no lock.</small>
   </div>
 
   <div class="form-group">
-    <label><input type="checkbox" name="is_completed" id="is_completed"> Mark as completed</label>
+    <label><input type="checkbox" name="is_pinned" id="is_pinned"> Pin this note</label>
   </div>
 
   <div class="form-group">
@@ -45,7 +47,18 @@
     </select>
   </div>
 
-  <div id="editor-container" style="height: 200px;"></div>
+  <div class="d-flex justify-content-between align-items-center mb-1">
+    <label><strong>Editor</strong></label>
+    <div>
+      <button type="button" class="btn btn-outline-primary btn-sm mr-2" onclick="startVoice()">🎤 Voice</button>
+      <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleFullscreenEditor()">🔳 Fullscreen</button>
+    </div>
+  </div>
+
+  <div id="editor-wrapper" style="resize: both; overflow: auto; border: 1px solid #ccc;">
+    <div id="editor-container" style="height: 200px;"></div>
+  </div>
+
   <input type="hidden" name="note" id="note">
   <input type="hidden" name="note_bg" id="note_bg">
 
@@ -61,62 +74,30 @@
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 
 <style>
-  .ql-snow .ql-picker.ql-size .ql-picker-item::before,
-  .ql-snow .ql-picker.ql-size .ql-picker-label::before {
-    content: attr(data-value);
+  .note-preview * { font-size: 14px !important; }
+  #editor-wrapper:fullscreen {
+    width: 100vw;
+    height: 100vh;
+    padding: 0; margin: 0;
+    border: none;
+    background: white;
+    display: flex;
+    flex-direction: column;
   }
-
-  .ql-snow .ql-picker.ql-font .ql-picker-label::before,
-  .ql-snow .ql-picker.ql-font .ql-picker-item::before {
-    content: attr(data-value);
-    font-family: attr(data-value);
+  #editor-wrapper:fullscreen #editor-container {
+    flex: 1;
+    height: 100%;
   }
-
-  .ql-font-serif         { font-family: serif; }
-  .ql-font-monospace     { font-family: monospace; }
-  .ql-font-sans-serif    { font-family: sans-serif; }
-  .ql-font-arial         { font-family: Arial, sans-serif; }
-  .ql-font-times-new-roman { font-family: "Times New Roman", serif; }
-  .ql-font-courier-new   { font-family: "Courier New", monospace; }
-  .ql-font-georgia       { font-family: Georgia, serif; }
-  .ql-font-tahoma        { font-family: Tahoma, sans-serif; }
-  .ql-font-verdana       { font-family: Verdana, sans-serif; }
-  .ql-font-impact        { font-family: Impact, sans-serif; }
-  .ql-font-comic-sans    { font-family: "Comic Sans MS", cursive; }
-
-  /* ✅ Custom checklist-style checkboxes */
-  .ql-editor li[data-list="checked"]::before,
-  .ql-editor li[data-list="unchecked"]::before {
-    content: '';
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    border: 2px solid #444;
-    margin-right: 10px;
-    vertical-align: middle;
-    background-color: white;
-    box-sizing: border-box;
-  }
-
-  .ql-editor li[data-list="checked"]::before {
-    background-color: #ccc;
-    background-image: url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 14 14' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='2 7 6 11 12 3' stroke='%23000' stroke-width='2' fill='none'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: center;
-  }
-
-  .note-preview * {
-    font-size: 14px !important;
+  #editor-wrapper:fullscreen .ql-toolbar,
+  #editor-wrapper:fullscreen .ql-editor {
+    background: white !important;
+    color: black !important;
   }
 </style>
 
 <script>
   const Font = Quill.import('formats/font');
-  Font.whitelist = [
-    'serif', 'monospace', 'sans-serif',
-    'arial', 'times-new-roman', 'courier-new', 'georgia',
-    'tahoma', 'verdana', 'impact', 'comic-sans'
-  ];
+  Font.whitelist = ['serif', 'monospace', 'sans-serif', 'arial', 'times-new-roman', 'courier-new', 'georgia', 'tahoma', 'verdana', 'impact', 'comic-sans'];
   Quill.register(Font, true);
 
   const Size = Quill.import('attributors/style/size');
@@ -131,63 +112,72 @@
         [{ font: Font.whitelist }],
         [{ size: Size.whitelist }],
         ['bold', 'italic', 'underline'],
-        [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'list': 'check' }], // ✅ added checkboxes
+        [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'list': 'check' }],
         ['clean']
       ]
     }
   });
 
+  function startVoice() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("⚠️ Your browser does not support voice recognition.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.start();
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      const range = quill.getSelection();
+      if (range) {
+        quill.clipboard.dangerouslyPasteHTML(range.index, transcript + ' ');
+      } else {
+        quill.clipboard.dangerouslyPasteHTML(quill.getLength() - 1, transcript + ' ');
+      }
+    };
+  }
+
+  function toggleFullscreenEditor() {
+    const wrapper = document.getElementById('editor-wrapper');
+    if (!document.fullscreenElement) {
+      wrapper.requestFullscreen().catch(err => alert(`Error: ${err.message}`));
+    } else {
+      document.exitFullscreen();
+    }
+  }
+
   document.getElementById('bg-color-picker').addEventListener('change', e => {
     const bg = e.target.value;
     document.querySelector('#editor-container .ql-editor').style.backgroundColor = bg;
+    document.querySelector('#editor-container .ql-editor').style.color = (bg === 'black') ? 'white' : 'black';
     document.getElementById('note_bg').value = bg;
   });
 
-  document.getElementById('noteForm').onsubmit = function () {
-    document.getElementById('note').value = JSON.stringify(quill.getContents());
+  document.getElementById('noteForm').onsubmit = function (e) {
+    e.preventDefault();
+    document.getElementById('note').value = quill.root.innerHTML;
     document.getElementById('note_bg').value = document.getElementById('bg-color-picker').value;
-
+    this.submit();
     setTimeout(() => {
-      quill.setContents([]);
-      document.querySelector('#editor-container .ql-editor').style.backgroundColor = 'white';
-      document.getElementById('bg-color-picker').value = 'white';
+      window.location.href = window.location.pathname; // 🔁 refresh to clear edit state
     }, 100);
   };
 
   {% if edit_note %}
-    const colorMap = {
-      "white": "White",
-      "#f8f9fa": "Light Gray",
-      "#fff3cd": "Yellow",
-      "#d4edda": "Green",
-      "#f8d7da": "Red",
-      "#d1ecf1": "Blue",
-      "#e1bee7": "Purple",
-      "#ffccbc": "Orange",
-      "#c8e6c9": "Mint",
-      "#f0f4c3": "Lime"
-    };
-
-    const editData = {{ edit_note.data | safe }};
-    const bgColor = "{{ edit_note.bg_color }}";
-
-    quill.setContents(editData);
+    quill.root.innerHTML = `{{ edit_note.data | safe }}`;
     document.getElementById('note_id').value = "{{ edit_note.id }}";
-    document.querySelector('#editor-container .ql-editor').style.backgroundColor = bgColor;
-    document.getElementById('note_bg').value = bgColor;
-
-    const bgSelect = document.getElementById('bg-color-picker');
-    if (colorMap[bgColor]) {
-      bgSelect.value = bgColor;
-    } else {
-      const newOption = new Option(bgColor, bgColor, true, true);
-      bgSelect.add(newOption);
-      bgSelect.value = bgColor;
-    }
-
     document.getElementById('tags').value = "{{ edit_note.tags }}";
+    document.getElementById('bg-color-picker').value = "{{ edit_note.bg_color }}";
+    document.querySelector('#editor-container .ql-editor').style.backgroundColor = "{{ edit_note.bg_color }}";
+    document.getElementById('note_bg').value = "{{ edit_note.bg_color }}";
     document.getElementById('is_pinned').checked = {{ 'true' if edit_note.is_pinned else 'false' }};
-    document.getElementById('is_completed').checked = {{ 'true' if edit_note.is_completed else 'false' }};
+    document.getElementById('note_password').value = "";
   {% endif %}
 </script>
 {% endblock %}
