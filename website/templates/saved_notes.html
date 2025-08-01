@@ -53,7 +53,9 @@
             </div>
           </div>
 
-          <button class="exit-fullscreen-btn btn btn-sm btn-danger" style="position:absolute; top:10px; right:10px; display:none; z-index:9999;">⤴ Exit Fullscreen</button>
+          <button class="exit-fullscreen-btn btn btn-sm btn-danger" style="position:absolute; top:10px; right:10px; display:none; z-index:9999;height:30px;width:30px;"class="btn btn-outline-secondary btn-sm fullscreen-btn" data-id="{{ note.id }}">
+                <img src="{{ url_for('static', filename='minimize.png') }}">
+              </button></button>
 
           <small class="text-muted">
             Created: {{ note.date|ist }}<br>
@@ -230,15 +232,275 @@ document.addEventListener('fullscreenchange', () => {
   width: 16px;
   height: 16px;
 }
-/* Dark mode overrides for note previews */
-body.dark-mode .fullscreen-note {
-  background-color: #1e1e1e !important; /* Dark background */
-  color: white !important; /* White text */
+
+/* Typing loader animation */
+.typing-indicator {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+}
+.typing-indicator span {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: #555;
+  border-radius: 50%;
+  animation: blink 1.4s infinite both;
+}
+.typing-indicator span:nth-child(1) { animation-delay: 0s; }
+.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blink {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
 }
 
-body.dark-mode .fullscreen-note .note-content {
-  color: white !important; /* White text */
+/* Dark mode overrides */
+body.dark-mode .fullscreen-note {
+  background-color: #1e1e1e !important;
+  color: white !important;
 }
+body.dark-mode .fullscreen-note .note-content {
+  color: white !important;
+}
+body.dark-mode .typing-indicator span {
+  background: white !important;
+}
+
+#copy-toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%) scale(0.9);
+  background: #222;
+  color: white;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Start centered */
+  gap: 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  opacity: 0;
+  transition: all 0.3s ease;
+  z-index: 9999;
+}
+
+#copy-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+#copy-toast .tick {
+  font-size: 18px;
+  font-weight: bold;
+  color: gray;
+  transform: scale(0);
+  animation: popTick 0.4s ease forwards, tickColor 0.4s ease forwards 0.4s, moveLeft 0.4s ease forwards 0.7s;
+}
+
+@keyframes popTick {
+  to { transform: scale(1); }
+}
+
+@keyframes tickColor {
+  to { color: #28a745; }
+}
+
+@keyframes moveLeft {
+  to {
+    margin-right: 2px; /* was 4px — smaller gap */
+    transform: translateX(-6px) scale(1); /* was -10px — smaller shift */
+  }
+}
+
+#copy-toast .toast-text {
+  opacity: 0;
+  white-space: nowrap;
+  animation: fadeInText 0.4s ease forwards 0.8s; /* was 1s — appears sooner */
+}
+
+
+@keyframes fadeInText {
+  to { opacity: 1; }
+}
+#action-toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%) scale(0.9);
+  background: #222;
+  color: white;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  opacity: 0;
+  transition: all 0.3s ease;
+  z-index: 9999;
+}
+#action-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+#action-toast .tick {
+  font-size: 18px;
+  font-weight: bold;
+  color: gray;
+  transform: scale(0);
+  animation: popTick 0.4s ease forwards, tickColor 0.4s ease forwards 0.4s, moveLeft 0.4s ease forwards 0.7s;
+}
+@keyframes popTick { to { transform: scale(1); } }
+@keyframes tickColor { to { color: #28a745; } }
+@keyframes moveLeft {
+  to {
+    margin-right: 2px;
+    transform: translateX(-6px) scale(1);
+  }
+}
+#action-toast .toast-text {
+  opacity: 0;
+  white-space: nowrap;
+  animation: fadeInText 0.4s ease forwards 0.8s;
+}
+@keyframes fadeInText { to { opacity: 1; } }
 
 </style>
+<script>
+function summarizeNote(noteId) {
+    const note = window.savedNotes.find(n => n.id === noteId);
+    if (!note) return;
+
+    const loader = document.getElementById(`loader-${noteId}`);
+    const summaryEl = document.getElementById(`summary-${noteId}`);
+
+    loader.style.display = 'block';
+    summaryEl.textContent = '';
+
+    // Convert Quill delta to plain text
+    let noteText = '';
+    if (note.data && note.data.ops) {
+        note.data.ops.forEach(op => {
+            if (typeof op.insert === 'string') noteText += op.insert;
+        });
+    }
+
+    fetch('/summarize_note', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json' // <-- ensures JSON response
+        },
+        body: JSON.stringify({ content: noteText })
+    })
+    .then(res => res.json())
+    .then(data => {
+        loader.style.display = 'none';
+        if (data.summary) {
+            summaryEl.textContent = data.summary;
+        } else {
+            summaryEl.textContent = '❌ Error: Could not summarize.';
+            console.error(data.error || 'Unknown error');
+        }
+    })
+    .catch(err => {
+        loader.style.display = 'none';
+        summaryEl.textContent = '❌ Error connecting to summarizer.';
+        console.error(err);
+    });
+}
+
+</script>
+<script>
+function copyNote(noteId) {
+  const contentEl = document.getElementById('note-content-' + noteId);
+  if (!contentEl) return;
+  const textToCopy = contentEl.innerText.trim();
+  if (!textToCopy) return;
+
+  navigator.clipboard.writeText(textToCopy)
+    .then(() => showCopyToast("Note copied!"))
+    .catch(() => showCopyToast("Copy failed!"));
+}
+
+function copySummary(noteId) {
+  const summaryEl = document.getElementById('summary-' + noteId);
+  if (!summaryEl) return;
+  const textToCopy = summaryEl.innerText.trim();
+  if (!textToCopy) return;
+
+  navigator.clipboard.writeText(textToCopy)
+    .then(() => showCopyToast("Summary copied!"))
+    .catch(() => showCopyToast("Copy failed!"));
+}
+
+function showCopyToast(message) {
+  const old = document.getElementById("copy-toast");
+  if (old) old.remove();
+
+  const toast = document.createElement("div");
+  toast.id = "copy-toast";
+  toast.innerHTML = `<span class="tick">✅</span><span class="toast-text">${message}</span>`;
+  document.body.appendChild(toast);
+
+  setTimeout(() => toast.classList.add("show"), 50);
+
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 500);
+  }, 2500);
+}
+</script>
+<script>
+function showActionToast(message) {
+  const old = document.getElementById("action-toast");
+  if (old) old.remove();
+
+  const toast = document.createElement("div");
+  toast.id = "action-toast";
+  toast.innerHTML = `<span class="tick">✅</span><span class="toast-text">${message}</span>`;
+  document.body.appendChild(toast);
+
+  setTimeout(() => toast.classList.add("show"), 50);
+
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 500);
+  }, 2500);
+}
+
+// Modify Delete Note Handler to show toast
+document.querySelectorAll('.delete-note-btn').forEach(button => {
+  button.addEventListener('click', () => {
+    const noteId = button.dataset.id;
+    fetch('/delete-note', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ noteId })
+    }).then(res => res.json())
+    .then(data => {
+      if (data?.message === 'Note deleted') {
+        document.getElementById('note-' + noteId)?.closest('.col-md-6')?.remove();
+        showActionToast("Note deleted!");
+      }
+    });
+  });
+});
+
+// PDF Download toast
+document.querySelectorAll('a[href*="/download-pdf/"]').forEach(link => {
+  link.addEventListener('click', () => {
+    showActionToast("PDF downloaded!");
+  });
+});
+</script>
+
+
 {% endblock %}
