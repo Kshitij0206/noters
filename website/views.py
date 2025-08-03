@@ -356,6 +356,8 @@ api_key = os.getenv("OPENROUTER_API_KEY")
 @views.route("/summarize_note", methods=["POST"])
 @login_required
 def summarize_note():
+    print("🔑 API Key Loaded:", bool(api_key))
+
     try:
         # Check API key first
         if not api_key:
