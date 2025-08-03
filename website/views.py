@@ -7,6 +7,12 @@ from xhtml2pdf import pisa
 from datetime import datetime
 import pytz
 import requests
+from dotenv import load_dotenv
+import os
+load_dotenv()
+
+api_key = os.getenv('OPENROUTER_API_KEY')
+
 
 views = Blueprint('views', __name__)
 
@@ -86,6 +92,7 @@ def home():
 
         else:  # New note
             new_note = Note(
+                 title=request.form.get('title', 'Untitled Note'),
                 data=note_text,
                 bg_color=note_bg,
                 user_id=current_user.id,
@@ -326,7 +333,7 @@ def download_pdf(note_id):
         flash("Error generating PDF.", "error")
         return redirect(url_for("views.saved_notes"))
     result.seek(0)
-    return send_file(result, download_name=f"note_{note_id}.pdf", as_attachment=True)
+    return send_file(result, download_name=f"{note.title}.pdf", as_attachment=True)
 
 @views.route("/get-note/<int:note_id>")
 @login_required
@@ -342,3 +349,131 @@ def get_note(note_id):
         "bg_color": note.bg_color or "white",
         "note_html": note.data or ""
     })
+
+load_dotenv()
+api_key = os.getenv("OPENROUTER_API_KEY")
+
+@views.route("/summarize_note", methods=["POST"])
+@login_required
+def summarize_note():
+    try:
+        # Check API key first
+        if not api_key:
+            return jsonify({"error": "OpenRouter API key not set in .env"}), 500
+
+        data = request.get_json()
+        content = data.get("content", "")
+
+        if not content.strip():
+            return jsonify({"error": "No content to summarize"}), 400
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+    "model": "mistralai/mistral-7b-instruct",  # ✅ correct OpenRouter model name
+    "messages": [
+        {"role": "system", "content": "You are a helpful assistant that summarizes notes in clear, concise language and answers in points and in under 500 words and does not bolden any text."},
+        {"role": "user", "content": f"Summarize this:\n\n{content}"}
+    ]
+}
+
+
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers=headers,
+            data=json.dumps(payload)
+        )
+
+        # Debug logging
+        print("🔹 API Status:", response.status_code)
+        print("🔹 API Response:", response.text)
+
+        if response.status_code != 200:
+            return jsonify({"error": f"API request failed ({response.status_code})"}), 500
+
+        result = response.json()
+
+        # Safe parsing
+        summary = ""
+        try:
+            choices = result.get("choices", [])
+            if choices:
+                summary = choices[0].get("message", {}).get("content", "").strip()
+        except Exception as e:
+            print("❌ Parsing error:", e)
+
+        if not summary:
+            return jsonify({"error": "No summary generated"}), 500
+
+        return jsonify({"summary": summary})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+from urllib.parse import unquote
+
+@views.route('/edit/<string:title>', methods=['GET', 'POST'])
+@login_required
+def edit_note_by_title(title):
+    decoded_title = unquote(title).strip()
+
+    # Look up the note by title for the current user
+    note = Note.query.filter_by(user_id=current_user.id, title=decoded_title).first_or_404()
+
+    if request.method == 'POST':
+        note_text = request.form.get('note')
+        note_bg = request.form.get('note_bg') or 'white'
+        tags = request.form.get('tags') or ''
+        is_pinned = 'is_pinned' in request.form
+        is_completed = 'is_completed' in request.form
+        password = request.form.get('password', '').strip()
+
+        if is_blank_quill(note_text):
+            return jsonify({"success": False, "error": "Note cannot be empty"}), 400
+
+        # Save old version for history
+        db.session.add(NoteVersion(note_id=note.id, version_data=note.data))
+
+        note.data = note_text
+        note.bg_color = note_bg
+        note.tags = tags
+        note.is_pinned = is_pinned
+        note.is_completed = is_completed
+        note.last_updated = datetime.utcnow()
+
+        if password:
+            note.set_password(password)
+        elif not note.password_hash:
+            note.is_locked = False
+
+        db.session.commit()
+        return jsonify({"success": True, "message": "Note updated"})
+
+    # Pre-fill edit form
+    def note_to_dict(note):
+        return {
+            "id": note.id,
+            "title": note.title,
+            "data": note.data,
+            "bg_color": note.bg_color or "white",
+            "tags": note.tags or "",
+            "is_pinned": note.is_pinned,
+            "is_completed": note.is_completed,
+            "is_locked": note.is_locked
+        }
+
+    # Convert datetime to IST
+    ist = pytz.timezone('Asia/Kolkata')
+    note.date = note.date.astimezone(ist)
+    note.last_updated = note.last_updated.astimezone(ist)
+
+    return render_template(
+        "home.html",
+        user=current_user,
+        edit_note=note,
+        edit_note_json=json.dumps(note_to_dict(note)),
+        dark_mode=session.get('dark_mode', False)
+    )

@@ -16,6 +16,8 @@ class Note(db.Model):
     is_completed = db.Column(db.Boolean, default=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     summary = db.Column(db.Text, nullable=True)
+    title = db.Column(db.String(255), nullable=False)
+
 
 
     # NEW fields for password lock
@@ -47,3 +49,16 @@ class User(db.Model, UserMixin):
     password = db.Column(db.String(150), nullable=False)
     first_name = db.Column(db.String(150), nullable=False)
     notes = db.relationship('Note', backref='user', cascade='all, delete-orphan')
+# models.py
+from datetime import datetime, timedelta
+from . import db
+
+class OTP(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(150), nullable=False)
+    otp = db.Column(db.String(6), nullable=False)
+    purpose = db.Column(db.String(20), nullable=False)  # 'signup' or 'reset'
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def is_expired(self):
+        return datetime.utcnow() > self.created_at + timedelta(minutes=5)

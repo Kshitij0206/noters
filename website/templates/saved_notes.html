@@ -6,6 +6,7 @@
 <h2 class="text-center mb-4">All Saved Notes</h2>
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 
+<!-- Filter & Sort -->
 <div class="form-group mb-3">
   <label for="tagFilter">Filter by Tag:</label>
   <select id="tagFilter" class="form-control" style="max-width: 300px;">
@@ -14,7 +15,8 @@
       <option value="{{ tag }}">{{ tag }}</option>
     {% endfor %}
   </select>
-  <label for="sortSelect">Sort Notes By:</label>
+
+  <label for="sortSelect" class="mt-2">Sort Notes By:</label>
   <select id="sortSelect" class="form-control" style="max-width: 300px;">
     <option value="pinned_date" {% if selected_sort == 'pinned_date' %}selected{% endif %}>Pinned + Newest</option>
     <option value="date_asc" {% if selected_sort == 'date_asc' %}selected{% endif %}>Oldest First</option>
@@ -23,88 +25,103 @@
   </select>
 </div>
 
+<!-- Notes Grid -->
 <div class="container" id="notes-container">
   <div class="row">
     {% for note in notes %}
-      <div class="col-md-6 mb-4 note-card" data-tags="{{ note.tags }}">
-        <div class="p-3 shadow-sm rounded position-relative fullscreen-note" id="note-{{ note.id }}" style="background-color: {{ note.bg_color or 'white' }}">
-          <div 
-            class="note-content mb-2 {% if note.is_locked %}locked-blur{% endif %}" 
-            id="note-content-{{ note.id }}"
-            data-delta='{{ note.data | tojson | safe }}'>
+      <div class="col-md-6 mb-4 note-card" data-tags="{{ note.tags | default('') }}">
+        <div class="p-3 shadow-sm rounded position-relative fullscreen-note" 
+             id="note-{{ note.id }}" 
+             style="background-color: {{ note.bg_color or 'white' }}">
+
+          <!-- ✅ Note Title -->
+          <h5 class="fw-bold mb-2" style="word-break: break-word;">
+            {{ note.title or "(Untitled)" }}
+          </h5>
+
+          <!-- Note Content -->
+          <div class="note-content mb-2 {% if note.is_locked %}locked-blur{% endif %}" 
+               id="note-content-{{ note.id }}"
+               data-delta='{{ note.data | tojson | safe }}'>
             {% if note.is_locked %}
               <em>This note is locked. Please unlock to view.</em>
             {% endif %}
           </div>
+          
+          <!-- Rest of your card content remains unchanged -->
 
-          <button id="summarize-btn-{{ note.id }}" class="btn btn-sm btn-outline-primary mt-2" onclick="summarizeNote({{ note.id }})">
-            Summarize
-          </button>
+          <!-- Actions: Summarize & Copy -->
+          <button id="summarize-btn-{{ note.id }}" class="btn btn-sm btn-outline-primary mt-2" onclick="summarizeNote({{ note.id }})">Summarize</button>
           <div class="d-flex gap-2 mt-1">
             <button class="btn btn-sm btn-outline-secondary" onclick="copyNote({{ note.id }})">📋 Copy Note</button>
             <button class="btn btn-sm btn-outline-secondary" onclick="copySummary({{ note.id }})">📋 Copy Summary</button>
           </div>
 
+          <!-- Summary Output -->
           <div id="summary-{{ note.id }}" class="summary-output mt-2 text-muted" style="white-space: pre-wrap;"></div>
 
+          <!-- Loader -->
           <div class="loader-container" id="loader-{{ note.id }}" style="display: none;">
-            <div class="typing-indicator">
-              <span></span><span></span><span></span>
-            </div>
+            <div class="typing-indicator"><span></span><span></span><span></span></div>
           </div>
 
-          <button class="exit-fullscreen-btn btn btn-sm btn-danger" style="position:absolute; top:10px; right:10px; display:none; z-index:9999;height:30px;width:30px;"class="btn btn-outline-secondary btn-sm fullscreen-btn" data-id="{{ note.id }}">
-                <img src="{{ url_for('static', filename='minimize.png') }}">
-              </button></button>
+          <!-- Exit Fullscreen -->
+          <button class="exit-fullscreen-btn btn btn-sm btn-danger" 
+                  style="position:absolute; top:10px; right:10px; display:none; z-index:9999; height:30px; width:30px;">
+            <img src="{{ url_for('static', filename='m.png') }}" alt="Exit Fullscreen">
+          </button>
 
+          <!-- Dates -->
           <small class="text-muted">
             Created: {{ note.date|ist }}<br>
             Updated: {{ note.last_updated|ist }}
           </small>
 
+          <!-- Pin Icon -->
           {% if note.is_pinned %}
             <span style="position: absolute; top: 8px; right: 12px; font-size: 20px;" title="Pinned">📌</span>
           {% else %}
             <span style="position: absolute; top: 8px; right: 12px; font-size: 20px; opacity: 0.3;" title="Not pinned">📌</span>
           {% endif %}
 
+          <!-- Tags & Note Actions -->
           <div class="d-flex justify-content-between mt-2">
             <div>
-              {% for tag in note.tags.split(',') if tag %}
-                <span class="badge badge-info">{{ tag.strip() }}</span>
+              {% for tag in note.tags.split(',') if tag.strip() %}
+                <span class="badge bg-info text-dark">{{ tag.strip() }}</span>
               {% endfor %}
             </div>
             <div class="note-actions">
-              <a href="{{ url_for('views.home') }}?edit={{ note.id }}" 
+              <a href="{{ url_for('views.edit_note_by_title', title=note.title|urlencode) }}" 
                  class="btn btn-secondary btn-sm me-2"
                  {% if note.is_locked %}style="pointer-events:none; opacity:0.5;" title="Cannot edit locked note"{% endif %}>
-                <img src="{{ url_for('static', filename='edit.png') }}">
+                <img src="{{ url_for('static', filename='edit.png') }}" alt="Edit">
               </a>
               <button class="btn btn-danger btn-sm delete-note-btn" data-id="{{ note.id }}">
-                <img src="{{ url_for('static', filename='delete.png') }}">
+                <img src="{{ url_for('static', filename='delete.png') }}" alt="Delete">
               </button>
-              <a href="{{ url_for('views.download_pdf', note_id=note.id) }}" class="btn btn-outline-dark btn-sm">
-                <img src="{{ url_for('static', filename='pdf.png') }}">
+              <a href="{{ url_for('views.download_pdf', note_id=note.id) }}" class="btn btn-outline-dark btn-sm" title="Download PDF">
+                <img src="{{ url_for('static', filename='pdf.png') }}" alt="PDF">
               </a>
-              <button class="btn btn-outline-secondary btn-sm fullscreen-btn" data-id="{{ note.id }}">
-                <img src="{{ url_for('static', filename='fullscreen.png') }}">
+              <button class="btn btn-outline-secondary btn-sm fullscreen-btn" data-id="{{ note.id }}" title="Fullscreen">
+                <img src="{{ url_for('static', filename='fullscreen.png') }}" alt="Fullscreen">
               </button>
-              <a href="{{ url_for('views.note_history', note_id=note.id) }}" class="btn btn-outline-info btn-sm">
-                <img src="{{ url_for('static', filename='history.png') }}">
+              <a href="{{ url_for('views.note_history', note_id=note.id) }}" class="btn btn-outline-info btn-sm" title="History">
+                <img src="{{ url_for('static', filename='history.png') }}" alt="History">
               </a>
               {% if note.is_locked %}
-                <button class="btn btn-warning btn-sm unlock-note-btn" data-id="{{ note.id }}">
-                  <img src="{{ url_for('static', filename='unlock.png') }}">
+                <button class="btn btn-warning btn-sm unlock-note-btn" data-id="{{ note.id }}" title="Unlock">
+                  <img src="{{ url_for('static', filename='unlock.png') }}" alt="Unlock">
                 </button>
               {% endif %}
             </div>
           </div>
+
         </div>
       </div>
     {% endfor %}
   </div>
 </div>
-
 {% endblock %}
 
 {% block javascript %}
@@ -117,6 +134,7 @@
 document.addEventListener('DOMContentLoaded', function () {
   const savedNotes = window.savedNotes;
 
+  // Render note content preview or full content
   function renderNoteContent(noteId, full = false) {
     const note = savedNotes.find(n => n.id === noteId);
     if (!note) return;
@@ -128,83 +146,67 @@ document.addEventListener('DOMContentLoaded', function () {
       note.data.ops.forEach(op => {
         if (typeof op.insert === 'string') htmlContent += op.insert;
       });
-      if (!full) {
-        const maxLength = 200;
-        if (htmlContent.length > maxLength) {
-          htmlContent = htmlContent.substring(0, maxLength) + "...";
-        }
+      if (!full && htmlContent.length > 200) {
+        htmlContent = htmlContent.substring(0, 200) + "...";
       }
       contentEl.innerHTML = htmlContent;
     }
   }
 
-  // Initial render (preview)
+  // Initial render preview for all notes
   savedNotes.forEach(note => renderNoteContent(note.id, false));
 
-  // Fullscreen logic
-  // Fullscreen logic
-document.querySelectorAll('.fullscreen-btn').forEach(button => {
+  // Fullscreen toggle
+  document.querySelectorAll('.fullscreen-btn').forEach(button => {
   button.addEventListener('click', () => {
     const noteId = parseInt(button.dataset.id);
     const noteEl = document.getElementById('note-' + noteId);
-    
-    // Hide fullscreen button when entering fullscreen
-    button.style.display = 'none';
-
-    renderNoteContent(noteId, true); // show full before entering fullscreen
-    noteEl.requestFullscreen().catch(err => alert(`Error: ${err.message}`));
+    renderNoteContent(noteId, true);
+    noteEl.requestFullscreen().then(() => {
+      const exitBtn = noteEl.querySelector('.exit-fullscreen-btn');
+      if (exitBtn) {
+        exitBtn.style.display = 'block'; // Force show after entering fullscreen
+      }
+    }).catch(err => alert(`Error: ${err.message}`));
   });
 });
 
-document.addEventListener('fullscreenchange', () => {
-  if (!document.fullscreenElement) {
-    // Back to preview mode
-    savedNotes.forEach(note => renderNoteContent(note.id, false));
 
-    // Show all fullscreen buttons again when exiting fullscreen
-    document.querySelectorAll('.fullscreen-btn').forEach(btn => btn.style.display = 'inline-block');
-
-    document.querySelectorAll('.exit-fullscreen-btn').forEach(btn => btn.style.display = 'none');
-  } else {
-    const fsEl = document.fullscreenElement;
-    const btn = fsEl?.querySelector('.exit-fullscreen-btn');
-    if (btn) btn.style.display = 'block';
-  }
-});
-
-
-  // Exit fullscreen button
   document.querySelectorAll('.exit-fullscreen-btn').forEach(button => {
     button.addEventListener('click', () => document.exitFullscreen());
   });
 
-  // Delete Note Handler
+  // Delete note handler
   document.querySelectorAll('.delete-note-btn').forEach(button => {
     button.addEventListener('click', () => {
       const noteId = button.dataset.id;
+      if (!confirm("Are you sure you want to delete this note?")) return;
       fetch('/delete-note', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ noteId })
       }).then(res => res.json())
-      .then(data => {
-        if (data?.message === 'Note deleted') {
-          document.getElementById('note-' + noteId)?.closest('.col-md-6')?.remove();
-        }
-      });
+        .then(data => {
+          if (data?.message === 'Note deleted') {
+            document.getElementById('note-' + noteId)?.closest('.col-md-6')?.remove();
+            showActionToast("Note deleted!");
+          } else {
+            alert("Failed to delete note.");
+          }
+        }).catch(() => alert("Network error while deleting note."));
     });
   });
 
-  // Tag Filter
+  // Tag filter
   document.getElementById('tagFilter').addEventListener('change', function () {
     const selectedTag = this.value.toLowerCase();
     document.querySelectorAll('.note-card').forEach(card => {
-      const cardTags = card.dataset.tags.toLowerCase();
+      const cardTags = (card.dataset.tags || '').toLowerCase();
       card.style.display = (selectedTag === 'all' || cardTags.includes(selectedTag)) ? 'block' : 'none';
     });
   });
 
-  // Sort select
+  // Sort select (reload page with sort param)
   document.getElementById('sortSelect').addEventListener('change', function () {
     const sortValue = this.value;
     const newUrl = new URL(window.location.href);
@@ -214,220 +216,14 @@ document.addEventListener('fullscreenchange', () => {
 });
 </script>
 
-<style>
-.fullscreen-note:fullscreen {
-  background: white;
-  color: black;
-  padding: 20px;
-  height: 100%;
-  width: 100%;
-  overflow: auto;
-}
-.locked-blur {
-  filter: blur(6px);
-  user-select: none;
-  pointer-events: none;
-}
-.note-actions img {
-  width: 16px;
-  height: 16px;
-}
-
-/* Typing loader animation */
-.typing-indicator {
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 4px;
-  height: 24px;
-}
-.typing-indicator span {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  background: #555;
-  border-radius: 50%;
-  animation: blink 1.4s infinite both;
-}
-.typing-indicator span:nth-child(1) { animation-delay: 0s; }
-.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
-.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
-@keyframes blink {
-  0%, 80%, 100% { transform: scale(0); }
-  40% { transform: scale(1); }
-}
-
-/* Dark mode overrides */
-body.dark-mode .fullscreen-note {
-  background-color: #1e1e1e !important;
-  color: white !important;
-}
-body.dark-mode .fullscreen-note .note-content {
-  color: white !important;
-}
-body.dark-mode .typing-indicator span {
-  background: white !important;
-}
-
-#copy-toast {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%) scale(0.9);
-  background: #222;
-  color: white;
-  padding: 10px 18px;
-  border-radius: 8px;
-  font-size: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center; /* Start centered */
-  gap: 0;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  opacity: 0;
-  transition: all 0.3s ease;
-  z-index: 9999;
-}
-
-#copy-toast.show {
-  opacity: 1;
-  transform: translateX(-50%) scale(1);
-}
-
-#copy-toast .tick {
-  font-size: 18px;
-  font-weight: bold;
-  color: gray;
-  transform: scale(0);
-  animation: popTick 0.4s ease forwards, tickColor 0.4s ease forwards 0.4s, moveLeft 0.4s ease forwards 0.7s;
-}
-
-@keyframes popTick {
-  to { transform: scale(1); }
-}
-
-@keyframes tickColor {
-  to { color: #28a745; }
-}
-
-@keyframes moveLeft {
-  to {
-    margin-right: 2px; /* was 4px — smaller gap */
-    transform: translateX(-6px) scale(1); /* was -10px — smaller shift */
-  }
-}
-
-#copy-toast .toast-text {
-  opacity: 0;
-  white-space: nowrap;
-  animation: fadeInText 0.4s ease forwards 0.8s; /* was 1s — appears sooner */
-}
-
-
-@keyframes fadeInText {
-  to { opacity: 1; }
-}
-#action-toast {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%) scale(0.9);
-  background: #222;
-  color: white;
-  padding: 10px 18px;
-  border-radius: 8px;
-  font-size: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  opacity: 0;
-  transition: all 0.3s ease;
-  z-index: 9999;
-}
-#action-toast.show {
-  opacity: 1;
-  transform: translateX(-50%) scale(1);
-}
-#action-toast .tick {
-  font-size: 18px;
-  font-weight: bold;
-  color: gray;
-  transform: scale(0);
-  animation: popTick 0.4s ease forwards, tickColor 0.4s ease forwards 0.4s, moveLeft 0.4s ease forwards 0.7s;
-}
-@keyframes popTick { to { transform: scale(1); } }
-@keyframes tickColor { to { color: #28a745; } }
-@keyframes moveLeft {
-  to {
-    margin-right: 2px;
-    transform: translateX(-6px) scale(1);
-  }
-}
-#action-toast .toast-text {
-  opacity: 0;
-  white-space: nowrap;
-  animation: fadeInText 0.4s ease forwards 0.8s;
-}
-@keyframes fadeInText { to { opacity: 1; } }
-
-</style>
 <script>
-function summarizeNote(noteId) {
-    const note = window.savedNotes.find(n => n.id === noteId);
-    if (!note) return;
-
-    const loader = document.getElementById(`loader-${noteId}`);
-    const summaryEl = document.getElementById(`summary-${noteId}`);
-
-    loader.style.display = 'block';
-    summaryEl.textContent = '';
-
-    // Convert Quill delta to plain text
-    let noteText = '';
-    if (note.data && note.data.ops) {
-        note.data.ops.forEach(op => {
-            if (typeof op.insert === 'string') noteText += op.insert;
-        });
-    }
-
-    fetch('/summarize_note', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json' // <-- ensures JSON response
-        },
-        body: JSON.stringify({ content: noteText })
-    })
-    .then(res => res.json())
-    .then(data => {
-        loader.style.display = 'none';
-        if (data.summary) {
-            summaryEl.textContent = data.summary;
-        } else {
-            summaryEl.textContent = '❌ Error: Could not summarize.';
-            console.error(data.error || 'Unknown error');
-        }
-    })
-    .catch(err => {
-        loader.style.display = 'none';
-        summaryEl.textContent = '❌ Error connecting to summarizer.';
-        console.error(err);
-    });
-}
-
-</script>
-<script>
+// Copy functions with toast
 function copyNote(noteId) {
   const contentEl = document.getElementById('note-content-' + noteId);
   if (!contentEl) return;
   const textToCopy = contentEl.innerText.trim();
   if (!textToCopy) return;
-
-  navigator.clipboard.writeText(textToCopy)
-    .then(() => showCopyToast("Note copied!"))
-    .catch(() => showCopyToast("Copy failed!"));
+  navigator.clipboard.writeText(textToCopy).then(() => showCopyToast("Note copied!"));
 }
 
 function copySummary(noteId) {
@@ -435,72 +231,205 @@ function copySummary(noteId) {
   if (!summaryEl) return;
   const textToCopy = summaryEl.innerText.trim();
   if (!textToCopy) return;
-
-  navigator.clipboard.writeText(textToCopy)
-    .then(() => showCopyToast("Summary copied!"))
-    .catch(() => showCopyToast("Copy failed!"));
+  navigator.clipboard.writeText(textToCopy).then(() => showCopyToast("Summary copied!"));
 }
 
 function showCopyToast(message) {
   const old = document.getElementById("copy-toast");
   if (old) old.remove();
-
   const toast = document.createElement("div");
   toast.id = "copy-toast";
   toast.innerHTML = `<span class="tick">✅</span><span class="toast-text">${message}</span>`;
   document.body.appendChild(toast);
-
   setTimeout(() => toast.classList.add("show"), 50);
-
-  setTimeout(() => {
-    toast.classList.remove("show");
-    setTimeout(() => toast.remove(), 500);
-  }, 2500);
+  setTimeout(() => { toast.classList.remove("show"); setTimeout(() => toast.remove(), 500); }, 2500);
 }
-</script>
-<script>
+
 function showActionToast(message) {
   const old = document.getElementById("action-toast");
   if (old) old.remove();
-
   const toast = document.createElement("div");
   toast.id = "action-toast";
   toast.innerHTML = `<span class="tick">✅</span><span class="toast-text">${message}</span>`;
   document.body.appendChild(toast);
-
   setTimeout(() => toast.classList.add("show"), 50);
-
-  setTimeout(() => {
-    toast.classList.remove("show");
-    setTimeout(() => toast.remove(), 500);
-  }, 2500);
+  setTimeout(() => { toast.classList.remove("show"); setTimeout(() => toast.remove(), 500); }, 2500);
 }
-
-// Modify Delete Note Handler to show toast
-document.querySelectorAll('.delete-note-btn').forEach(button => {
-  button.addEventListener('click', () => {
-    const noteId = button.dataset.id;
-    fetch('/delete-note', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ noteId })
-    }).then(res => res.json())
-    .then(data => {
-      if (data?.message === 'Note deleted') {
-        document.getElementById('note-' + noteId)?.closest('.col-md-6')?.remove();
-        showActionToast("Note deleted!");
-      }
-    });
-  });
-});
-
-// PDF Download toast
-document.querySelectorAll('a[href*="/download-pdf/"]').forEach(link => {
-  link.addEventListener('click', () => {
-    showActionToast("PDF downloaded!");
-  });
-});
 </script>
 
+<script>
+// Summarize Note
+function summarizeNote(noteId) {
+  const note = window.savedNotes.find(n => n.id === noteId);
+  if (!note) return;
+  const loader = document.getElementById(`loader-${noteId}`);
+  const summaryEl = document.getElementById(`summary-${noteId}`);
+  loader.style.display = 'block';
+  summaryEl.textContent = '';
+  let noteText = '';
+  if (note.data && note.data.ops) {
+    note.data.ops.forEach(op => {
+      if (typeof op.insert === 'string') noteText += op.insert;
+    });
+  }
+  fetch('/summarize_note', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify({ content: noteText })
+  }).then(res => res.json())
+    .then(data => {
+      loader.style.display = 'none';
+      summaryEl.textContent = data.summary || '❌ Error: Could not summarize.';
+    }).catch(() => {
+      loader.style.display = 'none';
+      summaryEl.textContent = '❌ Error connecting to summarizer.';
+    });
+}
+</script>
 
+<style>
+
+  .note-card h5 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #222;
+}
+body.dark-mode .note-card h5 {
+  color: #fff;
+}
+
+  /* Fullscreen styling */
+  .fullscreen-note:fullscreen {
+    background: white;
+    color: black;
+    padding: 20px;
+    height: 100%;
+    width: 100%;
+    overflow: auto;
+  }
+  body.dark-mode .fullscreen-note:fullscreen {
+    background-color: #1e1e1e !important;
+    color: white !important;
+  }
+  body.dark-mode .fullscreen-note .note-content {
+    color: white !important;
+  }
+
+  /* Locked blur */
+  .locked-blur {
+    filter: blur(6px);
+    user-select: none;
+    pointer-events: none;
+  }
+
+  /* Note actions icons */
+  .note-actions img {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Typing indicator loader */
+  .typing-indicator {
+    display: flex;
+    gap: 6px;
+    height: 20px;
+    justify-content: center;
+    align-items: center;
+  }
+  .typing-indicator span {
+    width: 8px;
+    height: 8px;
+    background: #555;
+    border-radius: 50%;
+    animation: blink 1.4s infinite ease-in-out both;
+  }
+  .typing-indicator span:nth-child(1) { animation-delay: 0s; }
+  .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+  body.dark-mode .typing-indicator span {
+    background: white !important;
+  }
+  @keyframes blink {
+    0%, 80%, 100% { transform: scale(0); opacity: 0.2; }
+    40% { transform: scale(1); opacity: 1; }
+  }
+
+  /* Toast styling */
+  #copy-toast, #action-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) scale(0.9);
+    background: #222;
+    color: white;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 9999;
+  }
+  #copy-toast.show, #action-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  .tick {
+    font-size: 18px;
+    font-weight: bold;
+    color: gray;
+    transform: scale(0);
+    animation: popTick 0.4s ease forwards, tickColor 0.4s ease forwards 0.4s, moveLeft 0.4s ease forwards 0.7s;
+  }
+  @keyframes popTick { to { transform: scale(1); } }
+  @keyframes tickColor { to { color: #28a745; } }
+  @keyframes moveLeft { to { margin-right: 2px; transform: translateX(-6px) scale(1); } }
+  .toast-text {
+    opacity: 0;
+    white-space: nowrap;
+    animation: fadeInText 0.4s ease forwards 0.8s;
+  }
+  @keyframes fadeInText { to { opacity: 1; } }
+
+
+  /* Animate fullscreen enter/exit */
+.fullscreen-note {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  will-change: transform, opacity;
+}
+
+.fullscreen-note:fullscreen {
+  animation: fullscreenEnter 0.3s forwards;
+}
+
+@keyframes fullscreenEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+:fullscreen:not(.fullscreen-note) {
+  animation: fullscreenExit 0.3s forwards;
+}
+
+@keyframes fullscreenExit {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+</style>
 {% endblock %}
