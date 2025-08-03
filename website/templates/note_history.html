@@ -2,7 +2,8 @@
 {% block title %}Note History{% endblock %}
 
 {% block content %}
-<h2>History for Note #{{ note.id }}</h2>
+<h3>{{ note.title }} - History</h3>
+
 <a href="{{ url_for('views.saved_notes') }}" class="btn btn-secondary mb-3">Back to Notes</a>
 
 <ul class="list-group">
