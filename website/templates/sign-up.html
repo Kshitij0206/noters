@@ -47,7 +47,6 @@
              value="{{ firstName if firstName else '' }}" placeholder="Enter first name" required>
     </div>
 
-    {% if not otp_sent %}
     <!-- Password -->
     <div class="form-group" style="position: relative;">
       <label for="password1">Password</label>
@@ -75,27 +74,8 @@
         </svg>
       </span>
     </div>
-    {% endif %}
 
-    {% if otp_sent %}
-    <!-- OTP -->
-    <div class="form-group" style="position: relative;">
-      <label for="otp">Enter OTP (Check your email)</label>
-      <input type="password" class="form-control" id="otp" name="otp"
-             placeholder="Enter OTP" required style="padding-right: 40px;">
-      <span class="password-toggle" id="toggleOtp">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
-          fill="none" stroke-width="2" viewBox="0 0 24 24">
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-          <circle cx="12" cy="12" r="3"/>
-        </svg>
-      </span>
-    </div>
-    {% endif %}
-
-    <button type="submit" class="btn btn-primary btn-block mt-3">
-      {% if otp_sent %}Verify & Sign Up{% else %}Send OTP{% endif %}
-    </button>
+    <button type="submit" class="btn btn-primary btn-block mt-3">Send OTP</button>
   </form>
 </div>
 
@@ -119,6 +99,5 @@
 
   document.getElementById("togglePass1")?.addEventListener("click", () => toggleVisibility("password1", "togglePass1"));
   document.getElementById("togglePass2")?.addEventListener("click", () => toggleVisibility("password2", "togglePass2"));
-  document.getElementById("toggleOtp")?.addEventListener("click", () => toggleVisibility("otp", "toggleOtp"));
 </script>
 {% endblock %}
