@@ -211,7 +211,7 @@ document.addEventListener("DOMContentLoaded", () => {
     <div class="navbar-nav ml-auto">
 
       {# Show Home/Saved Notes only if not on login or signup page #}
-      {% if request.endpoint not in ['auth.login', 'auth.sign_up'] %}
+      {% if request.endpoint not in ['auth.login', 'auth.sign_up','auth.verify_signup_otp'] %}
         {% if not hide_home %}
           <a class="nav-item nav-link {% if request.endpoint == 'views.home' %}active{% endif %}" 
              href="{{ url_for('views.home') }}">Home</a>
