@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Verify Signup OTP{% endblock %}
+
+{% block content %}
+<style>
+  .otp-form-container {
+    max-width: 450px;
+    margin: 50px auto;
+    padding: 25px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    text-align: center;
+  }
+  .dark-mode .otp-form-container {
+    background: #1f1f1f;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .verified-message {
+    display: none;
+    font-size: 22px;
+    font-weight: bold;
+    animation: fadeSlide 1s ease forwards;
+    margin-top: 15px;
+  }
+  .verified-message.success { color: #4caf50; }
+  .verified-message.error { color: #dc3545; }
+
+  @keyframes fadeSlide {
+    0% { opacity: 0; transform: translateY(-20px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  .tick {
+    font-size: 40px;
+    display: inline-block;
+    transform: scale(0);
+    animation: tickScale 0.5s ease forwards;
+  }
+  @keyframes tickScale {
+    to { transform: scale(1); }
+  }
+  .password-toggle {
+    position: absolute;
+    right: 10px;
+    top: 36px;
+    cursor: pointer;
+  }
+  .password-toggle svg {
+    stroke: #6c757d;
+  }
+  .dark-mode .password-toggle svg {
+    stroke: white;
+  }
+</style>
+
+<div class="otp-form-container">
+  <h3 class="mb-3">Verify Signup OTP</h3>
+  <p class="mb-4">We have sent an OTP to <strong>{{ email }}</strong></p>
+
+  <form id="otpForm" method="POST" style="position: relative;">
+    <input type="password" class="form-control mb-3" id="otp" name="otp"
+           placeholder="Enter OTP" required style="padding-right: 40px;">
+    <!-- Eye icon -->
+    <span class="password-toggle" id="toggleOtp">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+        fill="none" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+        <circle cx="12" cy="12" r="3"/>
+      </svg>
+    </span>
+    <button type="submit" class="btn btn-primary btn-block">Verify</button>
+  </form>
+
+  <div id="verifiedMsg" class="verified-message success">
+    <span class="tick">✅</span> OTP Verified
+  </div>
+</div>
+
+<script>
+  // Toggle OTP visibility
+  document.getElementById("toggleOtp").addEventListener("click", function () {
+    const otpField = document.getElementById("otp");
+    const isPassword = otpField.type === "password";
+    otpField.type = isPassword ? "text" : "password";
+
+    this.innerHTML = isPassword
+      ? `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+          fill="none" stroke-width="2" viewBox="0 0 24 24">
+           <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8
+                    a21.77 21.77 0 0 1 5.06-6.06M9.88 9.88
+                    A3 3 0 0 0 12 15a3 3 0 0 0 2.12-5.12"/>
+           <line x1="1" y1="1" x2="23" y2="23"/>
+         </svg>`
+      : `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+          fill="none" stroke-width="2" viewBox="0 0 24 24">
+           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+           <circle cx="12" cy="12" r="3"/>
+         </svg>`;
+  });
+
+  // AJAX OTP verification
+  document.getElementById("otpForm").addEventListener("submit", function(e) {
+    e.preventDefault();
+
+    fetch(window.location.pathname, {
+      method: "POST",
+      body: new FormData(this),
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+    .then(async res => {
+      let text = await res.text();
+      try {
+        let data = JSON.parse(text);
+        if (data.status === "success") {
+          document.getElementById("otpForm").style.display = "none";
+          let msg = document.getElementById("verifiedMsg");
+          msg.style.display = "block";
+          setTimeout(() => window.location.href = "{{ url_for('views.home') }}", 2000);
+        } else {
+          alert(data.message || "Invalid OTP, please try again.");
+        }
+      } catch {
+        alert("Server returned invalid data.");
+      }
+    })
+    .catch(() => alert("Error verifying OTP."));
+  });
+</script>
+{% endblock %}

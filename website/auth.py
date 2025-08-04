@@ -2,7 +2,7 @@ import smtplib, random, re
 from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from flask import Blueprint, render_template, request, flash, redirect, url_for, session
+from flask import Blueprint, render_template, request, flash, redirect, url_for, session,jsonify
 from .models import User, OTP
 from . import db
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -128,30 +128,52 @@ def sign_up():
 def verify_signup_otp():
     temp = session.get('signup_temp')
     if not temp:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"status": "error", "message": "Session expired. Please sign up again."})
         flash("Session expired. Please sign up again.", category='error')
         return redirect(url_for('auth.sign_up'))
 
     if request.method == 'POST':
         entered_otp = request.form.get('otp')
-        otp_obj = OTP.query.filter_by(email=temp['email'], purpose='signup').order_by(OTP.created_at.desc()).first()
+        otp_obj = OTP.query.filter_by(email=temp['email'], purpose='signup') \
+                           .order_by(OTP.created_at.desc()).first()
 
+        # OTP expired or not found
         if not otp_obj or otp_obj.is_expired():
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return jsonify({"status": "error", "message": "OTP expired. Please request a new one."})
             flash("OTP expired. Please request a new one.", category='error')
             return redirect(url_for('auth.sign_up'))
 
+        # OTP match
         if entered_otp == otp_obj.otp:
-            new_user = User(email=temp['email'], first_name=temp['first_name'], password=temp['password'])
+            new_user = User(email=temp['email'],
+                            first_name=temp['first_name'],
+                            password=temp['password'])
             db.session.add(new_user)
             db.session.commit()
+
+            # delete OTP record
             db.session.delete(otp_obj)
             db.session.commit()
-            session.pop('signup_temp')
+
+            # remove signup temp data
+            session.pop('signup_temp', None)
+
+            # log in user
             login_user(new_user)
+
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return jsonify({"status": "success"})
             flash("Account created successfully!", category='success')
             return redirect(url_for('views.home'))
-        else:
-            flash("Invalid OTP.", category='error')
 
+        # OTP mismatch
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"status": "error", "message": "Invalid OTP."})
+        flash("Invalid OTP.", category='error')
+
+    # GET request → show OTP form page
     return render_template("verify_signup_otp.html", email=temp['email'], user=current_user)
 
 # Forgot password → request OTP

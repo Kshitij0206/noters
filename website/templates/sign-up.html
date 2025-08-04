@@ -1,43 +1,124 @@
 {% extends "base.html" %}
 {% block title %}Sign Up{% endblock %}
+
 {% block content %}
-<form method="POST">
-  <h3 align="center">Sign Up</h3>
+<style>
+  .signup-form {
+    max-width: 450px;
+    margin: 50px auto;
+    padding: 25px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  }
+  .dark-mode .signup-form {
+    background: #1f1f1f;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .password-toggle {
+    position: absolute;
+    right: 10px;
+    top: 36px;
+    cursor: pointer;
+  }
+  .password-toggle svg {
+    stroke: #6c757d;
+  }
+  .dark-mode .password-toggle svg {
+    stroke: white;
+  }
+</style>
 
-  <div class="form-group">
-    <label for="email">Email Address</label>
-    <input type="email" class="form-control" id="email" name="email"
-           value="{{ email if email else '' }}" placeholder="Enter email" required>
-  </div>
+<div class="signup-form">
+  <h3 class="text-center mb-4">Sign Up</h3>
 
-  <div class="form-group">
-    <label for="firstName">First Name</label>
-    <input type="text" class="form-control" id="firstName" name="firstName"
-           value="{{ firstName if firstName else '' }}" placeholder="Enter first name" required>
-  </div>
+  <form method="POST">
+    <!-- Email -->
+    <div class="form-group">
+      <label for="email">Email Address</label>
+      <input type="email" class="form-control" id="email" name="email"
+             value="{{ email if email else '' }}" placeholder="Enter email" required>
+    </div>
 
-  {% if not otp_sent %}
-  <div class="form-group">
-    <label for="password1">Password</label>
-    <input type="password" class="form-control" id="password1" name="password1" placeholder="Enter password" required>
-  </div>
+    <!-- First Name -->
+    <div class="form-group">
+      <label for="firstName">First Name</label>
+      <input type="text" class="form-control" id="firstName" name="firstName"
+             value="{{ firstName if firstName else '' }}" placeholder="Enter first name" required>
+    </div>
 
-  <div class="form-group">
-    <label for="password2">Password (Confirm)</label>
-    <input type="password" class="form-control" id="password2" name="password2" placeholder="Confirm password" required>
-  </div>
-  {% endif %}
+    {% if not otp_sent %}
+    <!-- Password -->
+    <div class="form-group" style="position: relative;">
+      <label for="password1">Password</label>
+      <input type="password" class="form-control" id="password1" name="password1"
+             placeholder="Enter password" required style="padding-right: 40px;">
+      <span class="password-toggle" id="togglePass1">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+          fill="none" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </span>
+    </div>
 
-  {% if otp_sent %}
-  <div class="form-group">
-    <label for="otp">Enter OTP (Check your email)</label>
-    <input type="text" class="form-control" id="otp" name="otp" placeholder="Enter OTP" required>
-  </div>
-  {% endif %}
+    <!-- Confirm Password -->
+    <div class="form-group" style="position: relative;">
+      <label for="password2">Password (Confirm)</label>
+      <input type="password" class="form-control" id="password2" name="password2"
+             placeholder="Confirm password" required style="padding-right: 40px;">
+      <span class="password-toggle" id="togglePass2">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+          fill="none" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </span>
+    </div>
+    {% endif %}
 
-  <br />
-  <button type="submit" class="btn btn-primary">
-    {% if otp_sent %}Verify & Sign Up{% else %}Send OTP{% endif %}
-  </button>
-</form>
+    {% if otp_sent %}
+    <!-- OTP -->
+    <div class="form-group" style="position: relative;">
+      <label for="otp">Enter OTP (Check your email)</label>
+      <input type="password" class="form-control" id="otp" name="otp"
+             placeholder="Enter OTP" required style="padding-right: 40px;">
+      <span class="password-toggle" id="toggleOtp">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+          fill="none" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </span>
+    </div>
+    {% endif %}
+
+    <button type="submit" class="btn btn-primary btn-block mt-3">
+      {% if otp_sent %}Verify & Sign Up{% else %}Send OTP{% endif %}
+    </button>
+  </form>
+</div>
+
+<script>
+  function toggleVisibility(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    const isPassword = input.type === "password";
+    input.type = isPassword ? "text" : "password";
+
+    icon.innerHTML = isPassword
+      ? `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke-width="2" viewBox="0 0 24 24">
+           <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.06M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 2.12-5.12"/>
+           <line x1="1" y1="1" x2="23" y2="23"/>
+         </svg>`
+      : `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke-width="2" viewBox="0 0 24 24">
+           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+           <circle cx="12" cy="12" r="3"/>
+         </svg>`;
+  }
+
+  document.getElementById("togglePass1")?.addEventListener("click", () => toggleVisibility("password1", "togglePass1"));
+  document.getElementById("togglePass2")?.addEventListener("click", () => toggleVisibility("password2", "togglePass2"));
+  document.getElementById("toggleOtp")?.addEventListener("click", () => toggleVisibility("otp", "toggleOtp"));
+</script>
 {% endblock %}

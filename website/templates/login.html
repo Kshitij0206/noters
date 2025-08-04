@@ -2,42 +2,101 @@
 {% block title %}Login{% endblock %}
 
 {% block content %}
-<form method="POST">
-  <h3 class="text-center">Login</h3>
+<style>
+  .login-form {
+    max-width: 400px;
+    margin: 50px auto;
+    padding: 25px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  }
+  .dark-mode .login-form {
+    background: #1f1f1f;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .password-toggle {
+    position: absolute;
+    right: 10px;
+    top: 36px;
+    cursor: pointer;
+  }
+  .password-toggle svg {
+    stroke: #6c757d;
+  }
+  .dark-mode .password-toggle svg {
+    stroke: white;
+  }
+</style>
 
-  <!-- Email -->
-  <div class="form-group">
-    <label for="email">Email Address</label>
-    <input
-      type="email"
-      class="form-control"
-      id="email"
-      name="email"
-      placeholder="Enter email"
-    >
-  </div>
+<div class="login-form">
+  <h3 class="text-center mb-4">Login</h3>
 
-  <!-- Password -->
-  <div class="form-group">
-    <label for="password">Password</label>
-    <input
-      type="password"
-      class="form-control"
-      id="password"
-      name="password"
-      placeholder="Enter password"
-    >
-  </div>
+  <form method="POST">
+    <!-- Email -->
+    <div class="form-group">
+      <label for="email">Email Address</label>
+      <input
+        type="email"
+        class="form-control"
+        id="email"
+        name="email"
+        placeholder="Enter email"
+        required
+      >
+    </div>
 
-  <br>
+    <!-- Password -->
+    <div class="form-group" style="position: relative;">
+      <label for="password">Password</label>
+      <input
+        type="password"
+        class="form-control"
+        id="password"
+        name="password"
+        placeholder="Enter password"
+        style="padding-right: 40px;"
+        required
+      >
+      <span class="password-toggle" id="togglePassword">
+        <!-- Eye icon -->
+        <svg xmlns="http://www.w3.org/2000/svg"
+          width="20" height="20" fill="none" stroke-width="2"
+          viewBox="0 0 24 24">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </span>
+    </div>
 
-  <!-- Forgot Password Link -->
-  <p>
-    Forgot your password?
-    <a href="{{ url_for('auth.forgot_password') }}">Click here</a>
-  </p>
+    <!-- Forgot Password -->
+    <p class="mt-2">
+      Forgot your password?
+      <a href="{{ url_for('auth.forgot_password') }}">Click here</a>
+    </p>
 
-  <!-- Submit Button -->
-  <button type="submit" class="btn btn-primary">Login</button>
-</form>
+    <!-- Submit -->
+    <button type="submit" class="btn btn-primary btn-block">Login</button>
+  </form>
+</div>
+
+<script>
+  const togglePassword = document.getElementById("togglePassword");
+  const passwordField = document.getElementById("password");
+
+  togglePassword.addEventListener("click", () => {
+    const isPassword = passwordField.type === "password";
+    passwordField.type = isPassword ? "text" : "password";
+
+    togglePassword.innerHTML = isPassword
+      ? `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke-width="2" viewBox="0 0 24 24">
+           <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.06M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 2.12-5.12"/>
+           <line x1="1" y1="1" x2="23" y2="23"/>
+         </svg>`
+      : `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke-width="2" viewBox="0 0 24 24">
+           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+           <circle cx="12" cy="12" r="3"/>
+         </svg>`;
+  });
+</script>
 {% endblock %}
