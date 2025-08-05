@@ -38,58 +38,103 @@
     <button type="submit" style="padding: 8px 15px;">Verify</button>
   </form>
 
+  <!-- Resend OTP Section -->
+  <div class="mt-3">
+    <button id="resendOtpBtn" class="btn btn-link p-0" disabled>
+      Resend OTP in <span id="otpTimer">30</span>s
+    </button>
+  </div>
+
   <div id="verifiedMsg" class="verified-message">
     <span class="tick">✅</span> OTP Verified
   </div>
 </div>
 
 <script>
+  // ---------------- OTP Verification ----------------
   document.getElementById("otpForm").addEventListener("submit", function(e) {
     e.preventDefault();
-
-    console.log("🔍 Submitting OTP form...");
 
     fetch(window.location.pathname, {
       method: "POST",
       body: new FormData(this),
-      headers: {
-        "X-Requested-With": "XMLHttpRequest" // Tell Flask it's AJAX
-      }
+      headers: { "X-Requested-With": "XMLHttpRequest" }
     })
     .then(async res => {
-      console.log("📩 Raw Response Status:", res.status, res.statusText);
-
       let text = await res.text();
-      console.log("📜 Raw Response Text:", text);
-
       try {
         let data = JSON.parse(text);
-        console.log("✅ Parsed JSON:", data);
-
         if (data.status === "success") {
-          console.log("🎉 OTP verified successfully!");
           document.getElementById("otpForm").style.display = "none";
           let msg = document.getElementById("verifiedMsg");
           msg.style.display = "block";
           setTimeout(() => {
-  window.location.href = "{{ url_for('views.home') }}";
-}, 2000);
-
+            window.location.href = "{{ url_for('views.home') }}";
+          }, 2000);
         } else {
-          console.error("❌ OTP verification failed:", data.message || "Unknown error");
           alert(data.message || "Invalid OTP, please try again.");
         }
       } catch (err) {
-        console.error("🚨 JSON Parse Error:", err);
-        alert("Server returned invalid data. Check console for details.");
+        alert("Server returned invalid data.");
       }
     })
-    .catch(err => {
-      console.error("💥 Fetch Error:", err);
-      alert("Error verifying OTP. Check console for details.");
+    .catch(() => {
+      alert("Error verifying OTP.");
     });
   });
-  
-</script>
 
+  // ---------------- Resend OTP Countdown ----------------
+  let countdown = 30;
+  const resendBtn = document.getElementById("resendOtpBtn");
+  const otpTimer = document.getElementById("otpTimer");
+
+  function startOtpCountdown() {
+    resendBtn.disabled = true;
+    otpTimer.textContent = countdown;
+
+    const timer = setInterval(() => {
+      countdown--;
+      otpTimer.textContent = countdown;
+
+      if (countdown <= 0) {
+        clearInterval(timer);
+        resendBtn.textContent = "Resend OTP";
+        resendBtn.disabled = false;
+      }
+    }, 1000);
+  }
+
+  resendBtn.addEventListener("click", () => {
+    if (resendBtn.disabled) return;
+
+    resendBtn.textContent = "Sending...";
+    resendBtn.disabled = true;
+
+    fetch("/resend-otp", { 
+  method: "POST",
+  credentials: "include" // ✅ Send session cookies
+})
+
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          alert("OTP resent successfully!");
+          countdown = 30;
+          resendBtn.innerHTML = `Resend OTP in <span id="otpTimer">30</span>s`;
+          startOtpCountdown();
+        } else {
+          alert(data.message || "Error resending OTP");
+          resendBtn.textContent = "Resend OTP";
+          resendBtn.disabled = false;
+        }
+      })
+      .catch(() => {
+        alert("Network error. Please try again.");
+        resendBtn.textContent = "Resend OTP";
+        resendBtn.disabled = false;
+      });
+  });
+
+  startOtpCountdown();
+</script>
 {% endblock %}

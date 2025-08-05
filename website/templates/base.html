@@ -340,5 +340,58 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
     </script>
+    <!-- Footer -->
+<footer class="footer mt-5">
+  <div class="container text-center py-4">
+    <p class="mb-2">
+      <a href="{{ url_for('views.privacy') }}" class="footer-link">Privacy Policy</a> |
+      <a href="{{ url_for('views.terms') }}" class="footer-link">Terms of Service</a> |
+      <a href="mailto:support@noters.online" class="footer-link">Contact</a>
+    </p>
+    <p class="footer-credit mb-0">
+      &copy; {{ current_year or 2025 }} <strong>Noters</strong> Built By <a href="https://instagram.com/noters.online/" target="_blank" class="footer-link">Noters Team</a>
+    </p>
+  </div>
+</footer>
+
+<style>
+/* Footer styling */
+.footer {
+  background-color: #222;
+  color: #bbb;
+  font-size: 14px;
+  border-top: 1px solid #444;
+}
+
+.footer-link {
+  color: #bbb;
+  text-decoration: none;
+  transition: color 0.2s ease-in-out;
+}
+
+.footer-link:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.footer-credit {
+  font-size: 13px;
+}
+
+.dark-mode .footer {
+  background-color: #1a1a1a;
+  color: #aaa;
+  border-top: 1px solid #333;
+}
+
+.dark-mode .footer-link {
+  color: #aaa;
+}
+
+.dark-mode .footer-link:hover {
+  color: #fff;
+}
+</style>
+
   </body>
 </html>

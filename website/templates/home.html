@@ -10,9 +10,9 @@
 
   <!-- Title -->
   <div class="form-group mb-3">
-    <input type="text" id="note-title" name="title" 
+    <input type="text" id="note-title" name="title"
            class="form-control note-title-input"
-           placeholder="Enter note title here">
+           placeholder="Enter note title here (optional)">
   </div>
 
   <!-- Tags -->
@@ -52,8 +52,23 @@
     </select>
   </div>
 
-  <!-- Quill Toolbar -->
-  <div class="d-flex justify-content-between align-items-center mb-1">
+  <div class="mb-2 d-flex justify-content-end">
+    <!-- Mic button -->
+    <button type="button" id="mic-btn" title="Start voice input">
+      <img src="{{ url_for('static', filename='mic.png') }}" alt="Mic" style="width:20px;height:20px;">
+    </button>
+
+    <!-- Fullscreen toggle button -->
+    <button type="button" id="fullscreen-btn" title="Toggle fullscreen">
+      <img id="fullscreen-icon"
+           src="{{ url_for('static', filename='fullscreen.png') }}"
+           alt="Fullscreen" style="width:20px;height:20px;">
+    </button>
+  </div>
+
+  <!-- Fullscreen container -->
+  <div id="editor-full-container">
+    <!-- Quill Toolbar -->
     <div id="toolbar" class="mb-2">
       <select class="ql-font">
         <option value="arial" selected>Arial</option>
@@ -67,6 +82,7 @@
         <option value="calibri">Calibri</option>
         <option value="lucida-console">Lucida Console</option>
       </select>
+
       <select class="ql-size">
         <option value="8px">8px</option>
         <option value="9px" selected>9px</option>
@@ -85,6 +101,7 @@
         <option value="72px">72px</option>
         <option value="96px">96px</option>
       </select>
+
       <select class="ql-header">
         <option value="1">H1</option>
         <option value="2">H2</option>
@@ -108,11 +125,11 @@
       <button class="ql-list" value="bullet"></button>
       <button class="ql-clean"></button>
     </div>
-  </div>
 
-  <!-- Quill Editor -->
-  <div id="editor-wrapper" style="resize: both; overflow: auto; border: 1px solid #ccc;">
-    <div id="editor-container"></div>
+    <!-- Quill Editor -->
+    <div id="editor-wrapper" style="border: 1px solid #ccc;">
+      <div id="editor-container"></div>
+    </div>
   </div>
 
   <input type="hidden" name="note" id="note">
@@ -122,12 +139,11 @@
   <div class="text-center">
     <button type="submit" class="btn btn-primary">Save Note</button>
   </div>
-  
-  <!-- Loading spinner -->
+
   <div id="loading-spinner"></div>
 </form>
 
-<!-- Toast -->
+<!-- Fancy Toast -->
 <div id="note-toast">
   <span class="tick">✅</span>
   <span class="toast-text">Note added!</span>
@@ -139,47 +155,25 @@
   window.editNote = {{ edit_note_json | safe }};
 </script>
 
-<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 
 <style>
-/* Title styling */
-.note-title-input {
-  text-align: center;
-  font-size: 1.8rem;
-  font-weight: bold;
-  border: none;
-  outline: none;
-  background: transparent;
-  margin-bottom: 8px;
-}
-body.dark-mode .note-title-input {
-  background-color: transparent;
-  color: white;
-}
-
-/* Bigger editor */
-#editor-container {
-  height: 350px !important;
-}
-
-/* Light mode */
-#editor-container .ql-editor {
-  background-color: white;
-  color: black;
-  transition: background-color 0.4s ease, color 0.4s ease;
-}
-
-/* Dark mode default (when "default" is selected) */
-.dark-mode #editor-container .ql-editor[data-bg="default"] {
-  background-color: #1e1e1e !important;
-  color: white !important;
-}
+  /* Quill font mapping */
+.ql-font-arial { font-family: Arial, sans-serif; }
+.ql-font-georgia { font-family: Georgia, serif; }
+.ql-font-impact { font-family: Impact, sans-serif; }
+.ql-font-comic-sans { font-family: "Comic Sans MS", cursive, sans-serif; }
+.ql-font-times-new-roman { font-family: "Times New Roman", serif; }
+.ql-font-verdana { font-family: Verdana, sans-serif; }
+.ql-font-courier-new { font-family: "Courier New", monospace; }
+.ql-font-tahoma { font-family: Tahoma, sans-serif; }
+.ql-font-calibri { font-family: Calibri, sans-serif; }
+.ql-font-lucida-console { font-family: "Lucida Console", monospace; }
 
 /* Toast styling */
 #note-toast {
-  position: fixed;
-  top: 20px;
+  position: absolute; /* instead of fixed */
   left: 50%;
   transform: translateX(-50%) scale(0.9);
   background: #222;
@@ -189,8 +183,7 @@ body.dark-mode .note-title-input {
   font-size: 15px;
   display: flex;
   align-items: center;
-  gap: 0;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  gap: 6px;
   opacity: 0;
   transition: all 0.3s ease;
   z-index: 9999;
@@ -199,37 +192,26 @@ body.dark-mode .note-title-input {
   opacity: 1;
   transform: translateX(-50%) scale(1);
 }
-#note-toast .tick {
-  font-size: 18px;
-  font-weight: bold;
-  color: gray;
-  transform: scale(0);
-  animation: popTick 0.4s ease forwards, tickColor 0.4s ease forwards 0.4s, moveLeft 0.4s ease forwards 0.7s;
-}
-@keyframes popTick { to { transform: scale(1); } }
-@keyframes tickColor { to { color: #28a745; } }
-@keyframes moveLeft { to { margin-right: 2px; transform: translateX(-6px) scale(1); } }
-#note-toast .toast-text {
-  opacity: 0;
-  white-space: nowrap;
-  animation: fadeInText 0.4s ease forwards 0.8s;
-}
-@keyframes fadeInText { to { opacity: 1; } }
 
-/* Spinner */
-#loading-spinner {
-  display: none;
-  margin: 12px auto 0 auto;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #007bff;
-  border-radius: 50%;
-  width: 30px;
-  height: 30px;
-  animation: spin 1s linear infinite;
+#note-toast .tick {
+  font-size: 20px;
+  font-weight: bold;
+  color: #28a745;
+  animation: tickPop 0.5s ease forwards;
 }
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+@keyframes tickPop {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+/* Dark mode mic + fullscreen */
+body.dark-mode #mic-btn, body.dark-mode #fullscreen-btn {
+  background: #222 !important;
+  border: 1px solid #444 !important;
+}
+body.dark-mode #mic-btn img, body.dark-mode #fullscreen-btn img {
+  filter: brightness(0.9) invert(1) !important;
 }
 </style>
 
@@ -248,95 +230,65 @@ const quill = new Quill('#editor-container', {
   modules: { toolbar: '#toolbar' }
 });
 
-/* Apply editor background */
-function applyEditorBackground(bg) {
-  const editor = document.querySelector('#editor-container .ql-editor');
-  if (bg === 'default') {
-    editor.setAttribute("data-bg", "default");
-    editor.style.removeProperty('background-color');
-    editor.style.removeProperty('color');
-    document.getElementById('note_bg').value = 'default';
-  } else {
-    editor.removeAttribute("data-bg");
-    const textColor = (bg === 'black') ? 'white' : 'black';
-    editor.style.setProperty('background-color', bg, 'important');
-    editor.style.setProperty('color', textColor, 'important');
-    document.getElementById('note_bg').value = bg;
-  }
-}
-document.getElementById('bg-color-picker').addEventListener('change', e => {
-  applyEditorBackground(e.target.value);
-});
-
-/* Toast */
+/* Toast function */
 function showNoteToast(message) {
   const toast = document.getElementById("note-toast");
   toast.querySelector(".toast-text").textContent = message;
+
+  // Position toast at current scroll top + some margin
+  toast.style.top = (window.scrollY + 20) + "px";
+
   toast.classList.add("show");
   setTimeout(() => toast.classList.remove("show"), 2500);
 }
 
+
 /* Save form */
 document.getElementById('noteForm').onsubmit = async e => {
   e.preventDefault();
-
-  const title = document.getElementById("note-title").value.trim();
-  if (!title) return alert("Title is required!");
-
   const plainText = quill.getText().trim();
   if (!plainText) return alert("Note cannot be empty!");
-
   document.getElementById('note').value = quill.root.innerHTML;
   document.getElementById('note_bg').value = document.getElementById('bg-color-picker').value;
 
-  const spinner = document.getElementById("loading-spinner");
-  spinner.style.display = "block";
-
-  const formData = new FormData(e.target);
-
   try {
-    const res = await fetch("/home", { method: "POST", body: formData });
+    const res = await fetch("/home", { method: "POST", body: new FormData(e.target) });
     if (res.ok) {
       showNoteToast("Note saved!");
       if (!document.getElementById("note_id").value) {
         quill.root.innerHTML = "";
         e.target.reset();
       }
-    } else {
-      alert("Error saving note.");
     }
   } catch {
     alert("Network error.");
-  } finally {
-    spinner.style.display = "none";
   }
 };
 
 /* Edit mode */
 document.addEventListener("DOMContentLoaded", () => {
-  const params = new URLSearchParams(window.location.search);
-  const editId = params.get("edit");
-  if (editId && window.editNote) {
-    const note = window.editNote;
-    document.getElementById("note_id").value = note.id;
-    document.getElementById("note-title").value = note.title || "";
-    document.getElementById("tags").value = note.tags || "";
-    document.getElementById("is_pinned").checked = note.is_pinned || false;
-    document.getElementById("bg-color-picker").value = note.bg_color || "default";
-    applyEditorBackground(note.bg_color || "default");
-
-    try {
-      const parsed = typeof note.data === "string" ? JSON.parse(note.data) : note.data;
-      if (parsed && parsed.ops) quill.setContents(parsed);
-      else quill.root.innerHTML = note.data || "";
-    } catch {
-      quill.root.innerHTML = note.data || "";
-    }
-
-    if (note.is_locked) {
-      document.getElementById("note_password").placeholder = "(locked - enter new password to change)";
-    }
+  if (window.editNote && window.editNote.data) {
+    document.getElementById("note_id").value = window.editNote.id;
+    document.getElementById("note-title").value = window.editNote.title || "";
+    document.getElementById("tags").value = window.editNote.tags || "";
+    document.getElementById("is_pinned").checked = window.editNote.is_pinned || false;
+    document.getElementById("bg-color-picker").value = window.editNote.bg_color || "default";
+    applyEditorBackground(window.editNote.bg_color || "default");
+    quill.root.innerHTML = window.editNote.data;
   }
 });
+
+/* Background color handling */
+function applyEditorBackground(bg) {
+  const editor = document.querySelector('#editor-container .ql-editor');
+  if (bg === 'default') {
+    editor.style.removeProperty('background-color');
+    editor.style.removeProperty('color');
+  } else {
+    const textColor = (bg === 'black') ? 'white' : 'black';
+    editor.style.backgroundColor = bg;
+    editor.style.color = textColor;
+  }
+}
 </script>
 {% endblock %}

@@ -1,5 +1,7 @@
-from flask import Blueprint, render_template, request, flash, jsonify, redirect, url_for, send_file, Response, session
+from flask import Blueprint, app, render_template, request, flash, jsonify, redirect, url_for, send_file, Response, session
 from flask_login import login_required, current_user
+
+from website.auth import send_email
 from .models import Note, User, NoteVersion
 from . import db
 import json, io, re
@@ -375,10 +377,21 @@ def summarize_note():
         }
 
         payload = {
-    "model": "mistralai/mistral-7b-instruct",  # ✅ correct OpenRouter model name
+    "model": "mistralai/mistral-7b-instruct",
     "messages": [
-        {"role": "system", "content": "You are a helpful assistant that summarizes notes in clear, concise language and answers in points and in under 500 words and does not bolden any text."},
-        {"role": "user", "content": f"Summarize this:\n\n{content}"}
+        {
+            "role": "system",
+            "content": (
+                "You are a helpful assistant that summarizes notes into short, clear bullet points. "
+                "Keep the summary under half the length of the original text. "
+                "Write in plain language without bold text, numbering, or long sentences. "
+                "Do not add extra commentary or explanations."
+            )
+        },
+        {
+            "role": "user",
+            "content": f"Summarize this:\n\n{content}"
+        }
     ]
 }
 
@@ -417,13 +430,10 @@ def summarize_note():
 
 from urllib.parse import unquote
 
-@views.route('/edit/<string:title>', methods=['GET', 'POST'])
+@views.route('/edit/<int:note_id>', methods=['GET', 'POST'])
 @login_required
-def edit_note_by_title(title):
-    decoded_title = unquote(title).strip()
-
-    # Look up the note by title for the current user
-    note = Note.query.filter_by(user_id=current_user.id, title=decoded_title).first_or_404()
+def edit_note(note_id):
+    note = Note.query.filter_by(user_id=current_user.id, id=note_id).first_or_404()
 
     if request.method == 'POST':
         note_text = request.form.get('note')
@@ -454,7 +464,6 @@ def edit_note_by_title(title):
         db.session.commit()
         return jsonify({"success": True, "message": "Note updated"})
 
-    # Pre-fill edit form
     def note_to_dict(note):
         return {
             "id": note.id,
@@ -467,7 +476,6 @@ def edit_note_by_title(title):
             "is_locked": note.is_locked
         }
 
-    # Convert datetime to IST
     ist = pytz.timezone('Asia/Kolkata')
     note.date = note.date.astimezone(ist)
     note.last_updated = note.last_updated.astimezone(ist)
@@ -479,3 +487,11 @@ def edit_note_by_title(title):
         edit_note_json=json.dumps(note_to_dict(note)),
         dark_mode=session.get('dark_mode', False)
     )
+@views.route("/privacy")
+def privacy():
+    return render_template("privacy.html")
+
+@views.route("/terms")
+def terms():
+    return render_template("terms.html")
+
