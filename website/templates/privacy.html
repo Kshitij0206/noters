@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Privacy Policy{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <h1>Privacy Policy</h1>
+  <p>Last updated: {{ current_year or 2025 }}</p>
+  
+  <p>At <strong>Noters</strong>, we respect your privacy and are committed to protecting it. This Privacy Policy explains how we collect, use, and protect your information when you use our services.</p>
+
+  <h3>Information We Collect</h3>
+  <ul>
+    <li>Account information (email, name, password)</li>
+    <li>Notes you create, edit, and store in Noters</li>
+    <li>Technical information such as IP address and browser type</li>
+  </ul>
+
+  <h3>How We Use Your Information</h3>
+  <ul>
+    <li>To provide, operate, and improve our services</li>
+    <li>To communicate with you about updates and support</li>
+    <li>To protect against security threats and prevent misuse</li>
+  </ul>
+
+  <h3>Data Security</h3>
+  <p>We implement strong security measures to protect your personal data. However, no method of transmission over the internet is 100% secure.</p>
+
+  <h3>Changes to This Policy</h3>
+  <p>We may update this policy from time to time. We encourage you to review it periodically.</p>
+
+  <p>If you have any questions, contact us at <a href="mailto:support@noters.online">support@noters.online</a>.</p>
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Terms of Service{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <h1>Terms of Service</h1>
+  <p>Last updated: {{ current_year or 2025 }}</p>
+  
+  <p>By using <strong>Noters</strong>, you agree to the following terms and conditions:</p>
+
+  <h3>Use of Service</h3>
+  <ul>
+    <li>You must be at least 13 years old to use Noters.</li>
+    <li>You are responsible for maintaining the confidentiality of your account.</li>
+    <li>You must not use Noters for any illegal activities.</li>
+  </ul>
+
+  <h3>Content Ownership</h3>
+  <p>You own the rights to the notes you create. We do not claim ownership over your content.</p>
+
+  <h3>Service Availability</h3>
+  <p>We strive to keep Noters online and accessible, but we do not guarantee uninterrupted service.</p>
+
+  <h3>Changes to Terms</h3>
+  <p>We may modify these terms at any time. Continued use of Noters after changes means you accept the new terms.</p>
+
+  <p>Contact us at <a href="mailto:support@noters.online">support@noters.online</a> for questions regarding these terms.</p>
+</div>
+{% endblock %}

@@ -51,14 +51,31 @@
           <!-- Rest of your card content remains unchanged -->
 
           <!-- Actions: Summarize & Copy -->
-          <button id="summarize-btn-{{ note.id }}" class="btn btn-sm btn-outline-primary mt-2" onclick="summarizeNote({{ note.id }})">Summarize</button>
+          {% if not note.is_locked %}
+  <button id="summarize-btn-{{ note.id }}" 
+          class="btn btn-sm btn-outline-primary mt-2" 
+          onclick="summarizeNote({{ note.id }})">Summarize</button>
+{% else %}
+  <button class="btn btn-sm btn-outline-secondary mt-2" disabled title="Unlock note to summarize">
+    🔒 Summarize
+  </button>
+{% endif %}
+
           <div class="d-flex gap-2 mt-1">
-            <button class="btn btn-sm btn-outline-secondary" onclick="copyNote({{ note.id }})">📋 Copy Note</button>
-            <button class="btn btn-sm btn-outline-secondary" onclick="copySummary({{ note.id }})">📋 Copy Summary</button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="copyNote({{ note.id }})"><img src="{{ url_for('static', filename='copy.png') }}" alt="Copy" style="width:16px;height:16px;"></button>
           </div>
 
           <!-- Summary Output -->
-          <div id="summary-{{ note.id }}" class="summary-output mt-2 text-muted" style="white-space: pre-wrap;"></div>
+<div id="summary-{{ note.id }}" 
+     class="summary-output mt-2 text-muted" 
+     style="white-space: pre-wrap;"></div>
+
+<!-- Copy Summary button appears ONLY after summary is generated -->
+<div id="copy-summary-container-{{ note.id }}" class="mt-1" style="display: none;">
+  <button class="btn btn-sm btn-outline-secondary" 
+          onclick="copySummary({{ note.id }})"><img src="{{ url_for('static', filename='copy.png') }}" alt="Copy" style="width:16px;height:16px;"></button>
+</div>
+
 
           <!-- Loader -->
           <div class="loader-container" id="loader-{{ note.id }}" style="display: none;">
@@ -67,9 +84,10 @@
 
           <!-- Exit Fullscreen -->
           <button class="exit-fullscreen-btn btn btn-sm btn-danger" 
-                  style="position:absolute; top:10px; right:10px; display:none; z-index:9999; height:30px; width:30px;">
-            <img src="{{ url_for('static', filename='m.png') }}" alt="Exit Fullscreen">
-          </button>
+        style="position:absolute; top:10px; right:10px; display:none; z-index:9999; height:30px; width:30px;">
+  <img src="{{ url_for('static', filename='m.png') }}" alt="Exit Fullscreen" id="fullscreen-exit-icon">
+</button>
+
 
           <!-- Dates -->
           <small class="text-muted">
@@ -92,7 +110,7 @@
               {% endfor %}
             </div>
             <div class="note-actions">
-              <a href="{{ url_for('views.edit_note_by_title', title=note.title|urlencode) }}" 
+              <a href="{{ url_for('views.edit_note', note_id=note.id) }}"
                  class="btn btn-secondary btn-sm me-2"
                  {% if note.is_locked %}style="pointer-events:none; opacity:0.5;" title="Cannot edit locked note"{% endif %}>
                 <img src="{{ url_for('static', filename='edit.png') }}" alt="Edit">
@@ -156,20 +174,44 @@ document.addEventListener('DOMContentLoaded', function () {
   // Initial render preview for all notes
   savedNotes.forEach(note => renderNoteContent(note.id, false));
 
-  // Fullscreen toggle
-  document.querySelectorAll('.fullscreen-btn').forEach(button => {
+document.querySelectorAll('.fullscreen-btn').forEach(button => {
   button.addEventListener('click', () => {
     const noteId = parseInt(button.dataset.id);
     const noteEl = document.getElementById('note-' + noteId);
+
     renderNoteContent(noteId, true);
+
     noteEl.requestFullscreen().then(() => {
       const exitBtn = noteEl.querySelector('.exit-fullscreen-btn');
       if (exitBtn) {
-        exitBtn.style.display = 'block'; // Force show after entering fullscreen
+        exitBtn.style.display = 'block';
+        const icon = exitBtn.querySelector('img');
+        if (icon) {
+          // ✅ Always set m.png
+          icon.src = "{{ url_for('static', filename='m.png') }}";
+        }
       }
     }).catch(err => alert(`Error: ${err.message}`));
   });
 });
+
+// ✅ Also set icon when fullscreen changes
+document.addEventListener('fullscreenchange', () => {
+  if (document.fullscreenElement) {
+    const exitBtn = document.fullscreenElement.querySelector('.exit-fullscreen-btn');
+    if (exitBtn) {
+      const icon = exitBtn.querySelector('img');
+      if (icon) {
+        icon.src = "{{ url_for('static', filename='m.png') }}"; // ensure m.png is applied
+      }
+    }
+  } else {
+    document.querySelectorAll('.exit-fullscreen-btn').forEach(btn => btn.style.display = 'none');
+    window.savedNotes.forEach(note => renderNoteContent(note.id, false));
+  }
+});
+
+
 
 
   document.querySelectorAll('.exit-fullscreen-btn').forEach(button => {
@@ -264,14 +306,19 @@ function summarizeNote(noteId) {
   if (!note) return;
   const loader = document.getElementById(`loader-${noteId}`);
   const summaryEl = document.getElementById(`summary-${noteId}`);
+  const copyContainer = document.getElementById(`copy-summary-container-${noteId}`);
+
   loader.style.display = 'block';
   summaryEl.textContent = '';
+  copyContainer.style.display = 'none'; // hide before new summary
+
   let noteText = '';
   if (note.data && note.data.ops) {
     note.data.ops.forEach(op => {
       if (typeof op.insert === 'string') noteText += op.insert;
     });
   }
+
   fetch('/summarize_note', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -279,15 +326,28 @@ function summarizeNote(noteId) {
   }).then(res => res.json())
     .then(data => {
       loader.style.display = 'none';
-      summaryEl.textContent = data.summary || '❌ Error: Could not summarize.';
+      if (data.summary) {
+        summaryEl.textContent = data.summary;
+        copyContainer.style.display = 'block'; // show copy button
+      } else {
+        summaryEl.textContent = '❌ Error: Could not summarize.';
+      }
     }).catch(() => {
       loader.style.display = 'none';
       summaryEl.textContent = '❌ Error connecting to summarizer.';
     });
 }
+
 </script>
 
 <style>
+.exit-fullscreen-btn img {
+  width: 18px;   /* resize icon */
+  height: 18px;  /* keep square */
+  object-fit: contain; /* prevent distortion */
+  display: block; /* remove extra spacing */
+  margin: auto;   /* center inside button */
+}
 
   .note-card h5 {
   font-size: 1.1rem;

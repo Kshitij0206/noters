@@ -229,3 +229,29 @@ def reset_password():
             return redirect(url_for('auth.login'))
 
     return render_template('reset_password.html', user=current_user)
+@auth.route('/resend-otp', methods=['POST'])
+def resend_otp():
+    # Try to get email from signup or reset session
+    if 'signup_temp' in session:
+        email = session['signup_temp']['email']
+        purpose = 'signup'
+        first_name = session['signup_temp'].get('first_name', 'User')
+    elif 'reset_email' in session:
+        email = session['reset_email']
+        purpose = 'reset'
+        user = User.query.filter_by(email=email).first()
+        first_name = user.first_name if user else 'User'
+    else:
+        return jsonify({"success": False, "message": "No email found in session"}), 400
+
+    # Generate new OTP with cooldown check
+    otp = generate_otp(email, purpose)
+    if not otp:
+        return jsonify({"success": False, "message": "Please wait 30 seconds before requesting another OTP"}), 429
+
+    # Send email
+    if send_email(email, "OTP - Noters", otp, purpose, first_name):
+        return jsonify({"success": True, "message": "OTP resent successfully"})
+
+    return jsonify({"success": False, "message": "Failed to send OTP"}), 500
+
