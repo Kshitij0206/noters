@@ -40,9 +40,9 @@
           </h5>
 
           <!-- Note Content -->
-          <div class="note-content mb-2 {% if note.is_locked %}locked-blur{% endif %}" 
+          <div class="note-content mb-2  {% if note.is_locked %}locked-blur{% endif %}"
                id="note-content-{{ note.id }}"
-               data-delta='{{ note.data | tojson | safe }}'>
+               data-delta='{{ note.content | safe }}'>
             {% if note.is_locked %}
               <em>This note is locked. Please unlock to view.</em>
             {% endif %}
@@ -112,9 +112,17 @@
             <div class="note-actions">
               <a href="{{ url_for('views.edit_note', note_id=note.id) }}"
                  class="btn btn-secondary btn-sm me-2"
-                 {% if note.is_locked %}style="pointer-events:none; opacity:0.5;" title="Cannot edit locked note"{% endif %}>
-                <img src="{{ url_for('static', filename='edit.png') }}" alt="Edit">
-              </a>
+                <a href="#" class="edit-note-btn" 
+   data-id="{{ note.id }}"
+   data-title="{{ note.title }}"
+   data-tags="{{ note.tags }}"
+   data-content="{{ note.data | tojson | safe }}"
+   data-color="{{ note.bg_color }}"
+   data-pinned="{{ note.is_pinned }}"
+   {% if note.is_locked %}style="pointer-events:none; opacity:0.5;" title="Cannot edit locked note"{% endif %}>
+  <img src="{{ url_for('static', filename='edit.png') }}" alt="Edit">
+</a>
+
               <button class="btn btn-danger btn-sm delete-note-btn" data-id="{{ note.id }}">
                 <img src="{{ url_for('static', filename='delete.png') }}" alt="Delete">
               </button>
@@ -260,13 +268,34 @@ document.addEventListener('fullscreenchange', () => {
 
 <script>
 // Copy functions with toast
-function copyNote(noteId) {
-  const contentEl = document.getElementById('note-content-' + noteId);
-  if (!contentEl) return;
-  const textToCopy = contentEl.innerText.trim();
-  if (!textToCopy) return;
-  navigator.clipboard.writeText(textToCopy).then(() => showCopyToast("Note copied!"));
+  function copyToClipboard(title, quill) {
+  const contentText = quill.getText();  // Gets plain text only
+  const fullText = `${title}\n\n${contentText}`;
+  
+  navigator.clipboard.writeText(fullText).then(() => {
+    alert("Note copied as plain text!");
+  }).catch(err => {
+    console.error('Failed to copy:', err);
+  });
 }
+
+
+  function showCopyToast(message) {
+    const toast = document.createElement("div");
+    toast.textContent = message;
+    toast.style.position = "fixed";
+    toast.style.bottom = "20px";
+    toast.style.right = "20px";
+    toast.style.background = "#333";
+    toast.style.color = "#fff";
+    toast.style.padding = "10px 20px";
+    toast.style.borderRadius = "8px";
+    toast.style.zIndex = 9999;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+  }
+
+
 
 function copySummary(noteId) {
   const summaryEl = document.getElementById('summary-' + noteId);
@@ -318,6 +347,27 @@ function summarizeNote(noteId) {
       if (typeof op.insert === 'string') noteText += op.insert;
     });
   }
+document.querySelectorAll('.edit-note-btn').forEach(button => {
+  button.addEventListener('click', function (e) {
+    e.preventDefault();
+
+    // Capture note data from the button
+    const noteData = {
+      id: this.dataset.id,
+      title: this.dataset.title,
+      tags: this.dataset.tags,
+      bg_color: this.dataset.color,
+      is_pinned: this.dataset.pinned === 'True',
+      data: JSON.parse(this.dataset.content)
+    };
+
+    // Store globally so home.html can access it
+    localStorage.setItem('editNote', JSON.stringify(noteData));
+
+    // Redirect back to home to populate the form
+    window.location.href = '/home';
+  });
+});
 
   fetch('/summarize_note', {
     method: 'POST',
@@ -341,6 +391,90 @@ function summarizeNote(noteId) {
 </script>
 
 <style>
+  /* === DARK MODE SUPPORT FOR NOTE PREVIEW === */
+body.dark-mode .note-card .fullscreen-note {
+  border: 1px solid #444;
+  color: #eee;
+}
+
+body.dark-mode .note-card .fullscreen-note h5 {
+  color: #fff;
+}
+
+body.dark-mode .note-card .fullscreen-note small.text-muted {
+  color: #bbb !important;
+}
+
+body.dark-mode .note-card .badge {
+  background-color: #444 !important;
+  color: #ddd !important;
+}
+
+body.dark-mode .note-card .note-actions .btn-outline-dark {
+  border-color: #ccc;
+  color: #ccc;
+}
+
+body.dark-mode .note-card .note-actions img {
+  filter: brightness(0.8);
+}
+
+body.dark-mode .summary-output {
+  color: #ccc;
+}
+
+body.dark-mode select,
+body.dark-mode .form-control {
+  background-color: #1e1e1e;
+  color: #eee;
+  border-color: #555;
+}
+  /* Existing styles... */
+
+  /* === DARK MODE NOTE PREVIEW STYLING === */
+  body.dark-mode .note-card .fullscreen-note {
+    border: 1px solid #444;
+    color: #f1f1f1;
+  }
+
+  body.dark-mode .note-card .fullscreen-note h5 {
+    color: #fff;
+  }
+
+  body.dark-mode .note-card .fullscreen-note small.text-muted {
+    color: #bbb !important;
+  }
+
+  body.dark-mode .note-card .badge {
+    background-color: #333 !important;
+    color: #eee !important;
+  }
+
+  body.dark-mode .note-card .note-actions .btn-outline-dark {
+    border-color: #ccc;
+    color: #ccc;
+  }
+
+  body.dark-mode .note-card .note-actions img {
+    filter: brightness(0.8);
+  }
+
+  body.dark-mode .summary-output {
+    color: #ccc;
+  }
+
+  body.dark-mode select,
+  body.dark-mode .form-control {
+    background-color: #1e1e1e;
+    color: #eee;
+    border-color: #555;
+  }
+
+  /* Optional: override light note backgrounds in dark mode */
+  body.dark-mode .note-card .fullscreen-note[style*="background-color"] {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+  }
+
 .exit-fullscreen-btn img {
   width: 18px;   /* resize icon */
   height: 18px;  /* keep square */
@@ -492,4 +626,36 @@ body.dark-mode .note-card h5 {
 }
 
 </style>
+<script>
+  function copyNote(noteId) {
+  const note = window.savedNotes.find(n => n.id === noteId);
+  if (!note) return;
+
+  const title = note.title || "(Untitled)";
+  let html = "";
+
+  // Get the raw HTML from Quill ops
+  if (note.data && note.data.ops) {
+    note.data.ops.forEach(op => {
+      if (typeof op.insert === 'string') html += op.insert;
+    });
+  }
+
+  // Strip HTML tags if any were present (extra safety)
+  const tempDiv = document.createElement("div");
+  tempDiv.innerHTML = html;
+  const plainText = tempDiv.textContent || tempDiv.innerText || "";
+
+  const fullText = `${title}\n\n${plainText.trim()}`;
+
+  navigator.clipboard.writeText(fullText).then(() => {
+    showCopyToast("Note copied!");
+  }).catch(err => {
+    console.error("Copy failed:", err);
+    alert("Failed to copy note.");
+  });
+}
+
+</script>
+
 {% endblock %}

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Resizable Table Picker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    .icon {
+      font-size: 28px;
+      cursor: pointer;
+    }
+    .grid-container {
+      display: none;
+      position: absolute;
+      border: 1px solid #ccc;
+      background: #fff;
+      padding: 5px;
+      z-index: 1000;
+      user-select: none;
+    }
+    .grid {
+      display: grid;
+      gap: 2px;
+    }
+    .cell {
+      width: 20px;
+      height: 20px;
+      border: 1px solid #ddd;
+      background: #f9f9f9;
+    }
+    .cell.highlight {
+      background: #4caf50;
+    }
+    #editor {
+      width: 100%;
+      min-height: 150px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-top: 20px;
+      background: white;
+    }
+    table {
+      border-collapse: collapse;
+    }
+    td {
+      border: 1px solid black;
+      padding: 5px;
+      min-width: 30px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Icon -->
+<i class="icon" id="tableIcon">📊</i>
+
+<!-- Grid Picker -->
+<div id="gridContainer" class="grid-container">
+  <div id="grid" class="grid"></div>
+  <div id="gridSize">0 × 0</div>
+</div>
+
+<!-- Editable area -->
+<div id="editor" contenteditable="true"></div>
+
+<script>
+  const tableIcon = document.getElementById('tableIcon');
+  const gridContainer = document.getElementById('gridContainer');
+  const grid = document.getElementById('grid');
+  const gridSize = document.getElementById('gridSize');
+  const editor = document.getElementById('editor');
+
+  let isSelecting = false;
+  let startX, startY;
+  let rows = 1, cols = 1;
+  const cellSize = 22;
+
+  tableIcon.addEventListener('mousedown', (e) => {
+    const rect = tableIcon.getBoundingClientRect();
+    gridContainer.style.left = `${rect.left}px`;
+    gridContainer.style.top = `${rect.bottom + window.scrollY}px`;
+    gridContainer.style.display = 'block';
+    isSelecting = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    updateGrid(1, 1);
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isSelecting) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+
+    cols = Math.max(1, Math.ceil(Math.abs(dx) / cellSize) + 1);
+    rows = Math.max(1, Math.ceil(Math.abs(dy) / cellSize) + 1);
+
+    updateGrid(rows, cols);
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!isSelecting) return;
+    isSelecting = false;
+    gridContainer.style.display = 'none';
+    insertTable(rows, cols);
+  });
+
+  function updateGrid(r, c) {
+    grid.innerHTML = '';
+    grid.style.gridTemplateColumns = `repeat(${c}, 20px)`;
+    grid.style.gridTemplateRows = `repeat(${r}, 20px)`;
+
+    for (let i = 0; i < r * c; i++) {
+      const cell = document.createElement('div');
+      cell.classList.add('cell', 'highlight');
+      grid.appendChild(cell);
+    }
+
+    gridSize.textContent = `${c} × ${r}`;
+  }
+
+  function insertTable(r, c) {
+    const table = document.createElement('table');
+    table.border = "1";
+    for (let i = 0; i < r; i++) {
+      const tr = document.createElement('tr');
+      for (let j = 0; j < c; j++) {
+        const td = document.createElement('td');
+        td.innerHTML = '&nbsp;';
+        tr.appendChild(td);
+      }
+      table.appendChild(tr);
+    }
+    editor.appendChild(table);
+  }
+</script>
+
+</body>
+</html>

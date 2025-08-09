@@ -1,7 +1,7 @@
 from . import db
 from flask_login import UserMixin
 from sqlalchemy.sql import func
-
+from datetime import datetime
 
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -17,6 +17,7 @@ class Note(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     summary = db.Column(db.Text, nullable=True)
     title = db.Column(db.String(255), nullable=False)
+    bg_color = db.Column(db.String(50), default="default")
 
 
 
@@ -45,10 +46,14 @@ class NoteVersion(db.Model):
 
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(150), unique=True, nullable=True)
     email = db.Column(db.String(150), unique=True, nullable=False)
+    profile_pic_url = db.Column(db.String(255), nullable=False)
     password = db.Column(db.String(150), nullable=False)
     first_name = db.Column(db.String(150), nullable=False)
     notes = db.relationship('Note', backref='user', cascade='all, delete-orphan')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 # models.py
 from datetime import datetime, timedelta
 from . import db
@@ -62,3 +67,18 @@ class OTP(db.Model):
 
     def is_expired(self):
         return datetime.utcnow() > self.created_at + timedelta(minutes=5)
+
+class Notification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    message = db.Column(db.String(255), nullable=False)
+    time = db.Column(db.DateTime, default=datetime.utcnow)
+    is_read = db.Column(db.Boolean, default=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "message": self.message,
+            "time": self.time.strftime("%Y-%m-%d %H:%M:%S"),
+            "is_read": self.is_read
+        }

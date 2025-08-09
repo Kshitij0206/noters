@@ -2,7 +2,7 @@ from flask import Blueprint, app, render_template, request, flash, jsonify, redi
 from flask_login import login_required, current_user
 
 from website.auth import send_email
-from .models import Note, User, NoteVersion
+from .models import Note, Notification, User, NoteVersion
 from . import db
 import json, io, re
 from xhtml2pdf import pisa
@@ -14,6 +14,11 @@ import os
 load_dotenv()
 
 api_key = os.getenv('OPENROUTER_API_KEY')
+def add_notification(message):
+    if current_user.is_authenticated:
+        notif = Notification(user_id=current_user.id, message=message)
+        db.session.add(notif)
+        db.session.commit()
 
 
 views = Blueprint('views', __name__)
@@ -72,7 +77,6 @@ def home():
         if note_id:  # Edit note
             note = Note.query.get(int(note_id))
             if note and note.user_id == current_user.id:
-                # Save old version for history
                 db.session.add(NoteVersion(note_id=note.id, version_data=note.data))
 
                 note.data = note_text
@@ -88,13 +92,14 @@ def home():
                     note.is_locked = False
 
                 db.session.commit()
+                add_notification(f'Note "{note.title}" updated')
                 return jsonify({"success": True, "message": "Note updated"})
             else:
                 return jsonify({"success": False, "error": "Note not found or permission denied"}), 403
 
         else:  # New note
             new_note = Note(
-                 title=request.form.get('title', 'Untitled Note'),
+                title=request.form.get('title', 'Untitled Note'),
                 data=note_text,
                 bg_color=note_bg,
                 user_id=current_user.id,
@@ -107,7 +112,12 @@ def home():
                 new_note.set_password(password)
             db.session.add(new_note)
             db.session.commit()
-            return jsonify({"success": True, "message": "Note added"})
+            flash("Note added successfully!", category="success")
+            return redirect(url_for('views.home'))
+
+
+    # ... (existing GET request logic remains unchanged)
+
 
     # ------------------ GET REQUEST ------------------
     edit_id = request.args.get('edit')
@@ -166,9 +176,9 @@ def saved_notes():
         query = query.filter(Note.tags.ilike(f"%{tag_filter}%"))
 
     if sort == 'title_asc':
-        notes = query.order_by(Note.is_pinned.desc(), Note.data.asc()).all()
+        notes = query.order_by(Note.is_pinned.desc(), Note.title.asc()).all()
     elif sort == 'title_desc':
-        notes = query.order_by(Note.is_pinned.desc(), Note.data.desc()).all()
+        notes = query.order_by(Note.is_pinned.desc(), Note.title.desc()).all()
     elif sort == 'date_asc':
         notes = query.order_by(Note.is_pinned.desc(), Note.date.asc()).all()
     else:
@@ -430,63 +440,8 @@ def summarize_note():
 
 from urllib.parse import unquote
 
-@views.route('/edit/<int:note_id>', methods=['GET', 'POST'])
-@login_required
-def edit_note(note_id):
-    note = Note.query.filter_by(user_id=current_user.id, id=note_id).first_or_404()
 
-    if request.method == 'POST':
-        note_text = request.form.get('note')
-        note_bg = request.form.get('note_bg') or 'white'
-        tags = request.form.get('tags') or ''
-        is_pinned = 'is_pinned' in request.form
-        is_completed = 'is_completed' in request.form
-        password = request.form.get('password', '').strip()
 
-        if is_blank_quill(note_text):
-            return jsonify({"success": False, "error": "Note cannot be empty"}), 400
-
-        # Save old version for history
-        db.session.add(NoteVersion(note_id=note.id, version_data=note.data))
-
-        note.data = note_text
-        note.bg_color = note_bg
-        note.tags = tags
-        note.is_pinned = is_pinned
-        note.is_completed = is_completed
-        note.last_updated = datetime.utcnow()
-
-        if password:
-            note.set_password(password)
-        elif not note.password_hash:
-            note.is_locked = False
-
-        db.session.commit()
-        return jsonify({"success": True, "message": "Note updated"})
-
-    def note_to_dict(note):
-        return {
-            "id": note.id,
-            "title": note.title,
-            "data": note.data,
-            "bg_color": note.bg_color or "white",
-            "tags": note.tags or "",
-            "is_pinned": note.is_pinned,
-            "is_completed": note.is_completed,
-            "is_locked": note.is_locked
-        }
-
-    ist = pytz.timezone('Asia/Kolkata')
-    note.date = note.date.astimezone(ist)
-    note.last_updated = note.last_updated.astimezone(ist)
-
-    return render_template(
-        "home.html",
-        user=current_user,
-        edit_note=note,
-        edit_note_json=json.dumps(note_to_dict(note)),
-        dark_mode=session.get('dark_mode', False)
-    )
 @views.route("/privacy")
 def privacy():
     return render_template("privacy.html")
@@ -494,4 +449,160 @@ def privacy():
 @views.route("/terms")
 def terms():
     return render_template("terms.html")
+@views.route('/sitemap.xml', methods=['GET'])
+def sitemap():
+    pages = []
+    now = datetime.utcnow().date().isoformat()
+
+    # Static pages (update this list with your own static routes)
+    static_urls = ['/', '/login', '/sign-up', '/saved-notes', '/settings', '/about', '/contact']
+    
+    for url in static_urls:
+        pages.append(f"""
+   <url>
+      <loc>{request.url_root.strip('/')}{url}</loc>
+      <lastmod>{now}</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>0.8</priority>
+   </url>
+""")
+
+    sitemap_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+{''.join(pages)}
+</urlset>"""
+
+    return Response(sitemap_xml, mimetype='application/xml')
+@views.route('/edit/<int:note_id>', methods=['GET', 'POST'])
+@login_required
+def edit_note(note_id):
+    note = Note.query.filter_by(user_id=current_user.id, id=note_id).first_or_404()
+
+    if request.method == 'POST':
+        note_title = request.form.get('title')  # <-- add this
+        note_text = request.form.get('note')
+        note_bg = request.form.get('note_bg') or 'white'
+        tags = request.form.get('tags')
+        is_pinned = request.form.get('is_pinned') == 'true'
+
+        note.title = note_title  # <-- update the title
+        note.data = note_text
+        note.note_bg = note_bg
+        note.tags = tags
+        note.is_pinned = is_pinned
+        note.updated_at = datetime.utcnow()
+
+        # Save version history
+        is_autosave = request.form.get('autosave') == 'true'
+        if not is_autosave:
+            version = NoteVersion(note_id=note.id, version_data=note_text)
+            db.session.add(version)
+
+        db.session.commit()
+        flash('Note updated successfully!', category='success')
+        return redirect(url_for('views.saved_notes'))
+
+    return render_template("home.html", user=current_user, editing=True, edit_note=note)
+
+
+@views.route("/save_note", methods=["POST"])
+def save_note():
+    data = request.get_json()
+
+    title = data.get("title", "").strip()
+    note_content = data.get("note", "").strip()
+    is_autosave = data.get("is_autosave", False)
+
+    if not title and not note_content:
+        return jsonify({"success": False, "message": "Empty note"}), 400
+
+    # Save note (new or update existing)
+    note = save_or_update_note_in_db(title, note_content, user_id=current_user.id)
+
+    # Add to history only if not autosave
+    if not is_autosave:
+        add_note_to_history(note.id, title, note_content, user_id=current_user.id)
+
+    return jsonify({"success": True, "message": "Note saved"})
+from datetime import datetime
+from website import db
+from website.models import NoteVersion
+
+def add_note_to_history(note_id, title, content, user_id):
+    """
+    Adds a manual save entry to the note's version history.
+    """
+    version = NoteVersion(
+        note_id=note_id,
+        version_data=content,
+        timestamp=datetime.utcnow()
+    )
+    db.session.add(version)
+    db.session.commit()
+def save_or_update_note_in_db(title, note_content, user_id):
+    raise NotImplementedError
+import os
+from flask import (
+    render_template, request, redirect, url_for, flash, current_app
+)
+from flask_login import login_required, current_user
+from werkzeug.utils import secure_filename
+from . import db
+from .models import User, Note
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@login_required
+@views.route('/settings', methods=['GET', 'POST'])
+def settings():
+    user = current_user
+
+    # Calculate total notes created by user
+    total_notes = Note.query.filter_by(user_id=user.id).count()
+
+    if request.method == 'POST':
+        # Update username
+        new_username = request.form.get('username')
+        if new_username and new_username != user.username:
+            # Optionally, add validation for username uniqueness here
+            user.username = new_username
+
+        # Update dark mode preference
+        user.dark_mode = bool(request.form.get('dark_mode'))
+
+    # Handle profile picture upload
+    if 'profile_pic' in request.files:
+        file = request.files['profile_pic']
+        print(f"Received file: {file.filename}")
+        if file and allowed_file(file.filename):
+            import uuid
+            filename = secure_filename(file.filename)
+            unique_suffix = uuid.uuid4().hex
+            filename = f"user_{user.id}_{unique_suffix}_{filename}"
+
+            upload_folder = os.path.join(current_app.root_path, 'static/profile_pics')
+            os.makedirs(upload_folder, exist_ok=True)
+            file_path = os.path.join(upload_folder, filename)
+            print(f"Saving file to: {file_path}")
+            file.save(file_path)
+            user.profile_pic_url = filename
+        elif file.filename != '':
+            flash('Invalid file type for profile picture. Allowed: png, jpg, jpeg, gif, webp', 'danger')
+    else:
+        print("No profile_pic found in request.files")
+
+    try:
+        db.session.commit()
+        flash('Settings updated successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('An error occurred while updating settings.', 'danger')
+        current_app.logger.error(f"Settings update error: {e}")
+
+    return render_template('settings.html', user=user, total_notes=total_notes)
 
