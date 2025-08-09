@@ -721,3 +721,8 @@ def notes_view():
     notes = query.all()
     render_template('saved_notes.html',user=User)
 
+from flask import send_from_directory
+
+@views.route('/robots.txt')
+def robots_txt():
+    return send_from_directory('static', 'robots.txt')
