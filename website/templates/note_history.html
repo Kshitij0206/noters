@@ -10,6 +10,10 @@
   {% for version in versions %}
     <li class="list-group-item">
       <strong>{{ version.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</strong>
+      <form method="POST" action="{{ url_for('views.restore_version', note_id=note.id, version_id=version.id) }}" style="display:inline;">
+    <button type="submit" class="btn btn-sm btn-warning">Restore</button>
+</form>
+
       <div class="mt-2" style="white-space: pre-wrap;">
         {{ version.version_data | safe }}
       </div>
