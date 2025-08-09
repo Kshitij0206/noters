@@ -3,147 +3,453 @@
 {% set hide_home = true %}
 
 {% block content %}
+{% if edit_note is defined %}
+  {% set is_editing = true %}
+{% else %}
+  {% set is_editing = false %}
+{% endif %}
+
+
 <h1 class="text-center">Hey, {{ user.first_name }}</h1>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
-<form method="POST" id="noteForm" class="mt-4">
-  <input type="hidden" id="note_id" name="note_id">
+<form  method="POST" id="noteForm" action="{{ url_for('views.edit_note', note_id=edit_note.id) if edit_note else url_for('views.home') }}">
+<input type="hidden" id="note_id" name="note_id" value="{{ edit_note.id if edit_note else '' }}">
+    <!-- your fields here -->
 
-  <!-- Title -->
-  <div class="form-group mb-3">
-    <input type="text" id="note-title" name="title"
-           class="form-control note-title-input"
-           placeholder="Enter note title here (optional)">
-  </div>
 
-  <!-- Tags -->
+    
+  <!-- Removed old title input here -->
+  <!-- No code needed here; the title input is now only present below in the editor section. -->
   <div class="form-group">
     <label for="tags">Tags (comma separated):</label>
-    <input type="text" class="form-control" name="tags" id="tags" placeholder="e.g. school, urgent">
+    <input type="text" class="form-control" name="tags" id="tags" placeholder="e.g. school, urgent"
+       value="{{ edit_note.tags if edit_note else '' }}">
+
   </div>
 
-  <!-- Password -->
   <div class="form-group">
     <label for="note_password">Lock this note with a password (optional):</label>
     <input type="password" class="form-control" id="note_password" name="password" placeholder="Enter password to lock note">
     <small class="form-text text-muted">Leave empty for no lock.</small>
   </div>
 
-  <!-- Pin -->
   <div class="form-group">
-    <label><input type="checkbox" name="is_pinned" id="is_pinned"> Pin this note</label>
+    <label>
+  <input type="checkbox" name="is_pinned" id="is_pinned"
+         {% if edit_note and edit_note.is_pinned %}checked{% endif %}> Pin this note
+</label>
+
   </div>
 
-  <!-- Background Color -->
-  <div class="form-group">
-    <label for="bg-color-picker">Note Background Color:</label>
-    <select id="bg-color-picker" class="form-control" style="max-width: 200px;">
-      <option value="default">Default (match mode)</option>
-      <option value="white">White</option>
-      <option value="black">Black</option>
-      <option value="#f8f9fa">Light Gray</option>
-      <option value="#fff3cd">Yellow</option>
-      <option value="#d4edda">Green</option>
-      <option value="#f8d7da">Red</option>
-      <option value="#d1ecf1">Blue</option>
-      <option value="#e1bee7">Purple</option>
-      <option value="#ffccbc">Orange</option>
-      <option value="#c8e6c9">Mint</option>
-      <option value="#f0f4c3">Lime</option>
-    </select>
-  </div>
+  <div id="color-picker-container">
+  <label>Note Background Color:</label>
+  <div class="color-grid">
+  <div class="color-swatch" data-color="default" title="Default"></div>
+  <div class="color-swatch" data-color="white" style="background:#fff" title="White"></div>
+  <div class="color-swatch" data-color="black" style="background:#000" title="Black"></div>
+  <div class="color-swatch" data-color="#f8f9fa" style="background:#f8f9fa" title="Light Gray"></div>
+  <div class="color-swatch" data-color="#fff3cd" style="background:#fff3cd" title="Yellow"></div>
+  <div class="color-swatch" data-color="#d4edda" style="background:#d4edda" title="Green"></div>
+  <div class="color-swatch" data-color="#f8d7da" style="background:#f8d7da" title="Red"></div>
+  <div class="color-swatch" data-color="#d1ecf1" style="background:#d1ecf1" title="Blue"></div>
+  <div class="color-swatch" data-color="#e1bee7" style="background:#e1bee7" title="Purple"></div>
+  <div class="color-swatch" data-color="#ffccbc" style="background:#ffccbc" title="Orange"></div>
+  <div class="color-swatch" data-color="#c8e6c9" style="background:#c8e6c9" title="Mint"></div>
+  <div class="color-swatch" data-color="#f0f4c3" style="background:#f0f4c3" title="Lime"></div>
+
+  <!-- New 12 colors below -->
+  <div class="color-swatch" data-color="#ffe4e1" style="background:#ffe4e1" title="Misty Rose"></div>
+  <div class="color-swatch" data-color="#fafad2" style="background:#fafad2" title="Light Goldenrod"></div>
+  <div class="color-swatch" data-color="#e6e6fa" style="background:#e6e6fa" title="Lavender"></div>
+  <div class="color-swatch" data-color="#f5f5dc" style="background:#f5f5dc" title="Beige"></div>
+  <div class="color-swatch" data-color="#ffe4b5" style="background:#ffe4b5" title="Moccasin"></div>
+  <div class="color-swatch" data-color="#add8e6" style="background:#add8e6" title="Light Blue"></div>
+  <div class="color-swatch" data-color="#90ee90" style="background:#90ee90" title="Light Green"></div>
+  <div class="color-swatch" data-color="#ffb6c1" style="background:#ffb6c1" title="Light Pink"></div>
+  <div class="color-swatch" data-color="#ffd700" style="background:#ffd700" title="Gold"></div>
+  <div class="color-swatch" data-color="#40e0d0" style="background:#40e0d0" title="Turquoise"></div>
+  <div class="color-swatch" data-color="#ff69b4" style="background:#ff69b4" title="Hot Pink"></div>
+  <div class="color-swatch" data-color="#b0c4de" style="background:#b0c4de" title="Light Steel Blue"></div>
+</div>
+
+  <input type="hidden" id="note_bg" name="bg_color" value="default">
+  {% if edit_note %}
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+      document.getElementById("note_bg").value = "{{ edit_note.note_bg }}";
+      document.querySelectorAll(".color-swatch").forEach(function(swatch) {
+          if (swatch.getAttribute("data-color") === "{{ edit_note.note_bg }}") {
+              swatch.classList.add("selected");
+          }
+      });
+  });
+</script>
+{% endif %}
+
+</div>
 
   <div class="mb-2 d-flex justify-content-end">
-    <!-- Mic button -->
     <button type="button" id="mic-btn" title="Start voice input">
       <img src="{{ url_for('static', filename='mic.png') }}" alt="Mic" style="width:20px;height:20px;">
     </button>
-
-    <!-- Fullscreen toggle button -->
     <button type="button" id="fullscreen-btn" title="Toggle fullscreen">
-      <img id="fullscreen-icon"
-           src="{{ url_for('static', filename='fullscreen.png') }}"
-           alt="Fullscreen" style="width:20px;height:20px;">
+      <img id="fullscreen-icon" src="{{ url_for('static', filename='fullscreen.png') }}" alt="Fullscreen" style="width:20px;height:20px;">
     </button>
   </div>
 
-  <!-- Fullscreen container -->
-  <div id="editor-full-container">
-    <!-- Quill Toolbar -->
-    <div id="toolbar" class="mb-2">
-      <select class="ql-font">
-        <option value="arial" selected>Arial</option>
-        <option value="georgia">Georgia</option>
-        <option value="impact">Impact</option>
-        <option value="comic-sans">Comic Sans</option>
-        <option value="times-new-roman">Times New Roman</option>
-        <option value="verdana">Verdana</option>
-        <option value="courier-new">Courier New</option>
-        <option value="tahoma">Tahoma</option>
-        <option value="calibri">Calibri</option>
-        <option value="lucida-console">Lucida Console</option>
-      </select>
+  <div id="editor-full-container" class="fullscreen-note">
+  <!-- Quill Toolbar -->
+  <div id="toolbar" class="mb-2">
+    <select class="ql-font">
+      <option value="arial" selected>Arial</option>
+      <option value="georgia">Georgia</option>
+      <option value="impact">Impact</option>
+      <option value="comic-sans">Comic Sans</option>
+      <option value="times-new-roman">Times New Roman</option>
+      <option value="verdana">Verdana</option>
+      <option value="courier-new">Courier New</option>
+      <option value="tahoma">Tahoma</option>
+      <option value="calibri">Calibri</option>
+      <option value="lucida-console">Lucida Console</option>
+    </select>
 
-      <select class="ql-size">
-        <option value="8px">8px</option>
-        <option value="9px" selected>9px</option>
-        <option value="10px">10px</option>
-        <option value="11px">11px</option>
-        <option value="12px">12px</option>
-        <option value="14px">14px</option>
-        <option value="16px">16px</option>
-        <option value="18px">18px</option>
-        <option value="20px">20px</option>
-        <option value="22px">22px</option>
-        <option value="24px">24px</option>
-        <option value="26px">26px</option>
-        <option value="36px">36px</option>
-        <option value="48px">48px</option>
-        <option value="72px">72px</option>
-        <option value="96px">96px</option>
-      </select>
+    <select class="ql-size">
+      <option value="8px">8px</option>
+      <option value="9px" >9px</option>
+      <option value="10px">10px</option>
+      <option value="11px">11px</option>
+      <option value="12px" selected>12px</option>
+      <option value="14px">14px</option>
+      <option value="16px">16px</option>
+      <option value="18px">18px</option>
+      <option value="20px">20px</option>
+      <option value="22px">22px</option>
+      <option value="24px">24px</option>
+      <option value="26px">26px</option>
+      <option value="36px">36px</option>
+      <option value="48px">48px</option>
+      <option value="72px">72px</option>
+      <option value="96px">96px</option>
+    </select>
 
-      <select class="ql-header">
-        <option value="1">H1</option>
-        <option value="2">H2</option>
-        <option value="3">H3</option>
-        <option selected>Normal</option>
-      </select>
-      <select class="ql-align">
-        <option selected></option>
-        <option value="center"></option>
-        <option value="right"></option>
-        <option value="justify"></option>
-      </select>
-      <button type="button" class="ql-direction" value="rtl"></button>
-      <button class="ql-bold"></button>
-      <button class="ql-italic"></button>
-      <button class="ql-underline"></button>
-      <button class="ql-strike"></button>
-      <button class="ql-blockquote"></button>
-      <button class="ql-code-block"></button>
-      <button class="ql-list" value="ordered"></button>
-      <button class="ql-list" value="bullet"></button>
-      <button class="ql-clean"></button>
-    </div>
+    <select class="ql-header">
+      <option value="1">H1</option>
+      <option value="2">H2</option>
+      <option value="3">H3</option>
+      <option selected>Normal</option>
+    </select>
 
-    <!-- Quill Editor -->
-    <div id="editor-wrapper" style="border: 1px solid #ccc;">
-      <div id="editor-container"></div>
-    </div>
+    <select class="ql-align">
+      <option selected></option>
+      <option value="center">Center</option>
+      <option value="right">Right</option>
+      <option value="justify">Justify</option>
+    </select>
+
+    <button type="button" class="ql-direction" value="rtl"></button>
+    <button class="ql-bold"></button>
+    <button class="ql-italic"></button>
+    <button class="ql-underline"></button>
+    <button class="ql-strike"></button>
+    <button class="ql-blockquote"></button>
+    <button class="ql-code-block"></button>
+    <button class="ql-list" value="ordered"></button>
+    <button class="ql-list" value="bullet"></button>
+    <button class="ql-link"></button>
+    <button class="ql-image"></button>
+    <button class="ql-video"></button>
+    <button class="ql-clean"></button>
   </div>
+  <form id="saveNoteForm" action="{{ url_for('views.saved_notes') }}" method="POST">
+  <!-- Title -->
+  <input type="text" id="note-title" name="title" placeholder="Enter note title here"
+       value="{{ edit_note.title if edit_note else '' }}">
 
-  <input type="hidden" name="note" id="note">
-  <input type="hidden" name="note_bg" id="note_bg">
-
-  <br>
-  <div class="text-center">
-    <button type="submit" class="btn btn-primary">Save Note</button>
+  
+  <!-- Quill Editor -->
+  <div id="editor-wrapper" style="border: 1px solid #ccc;">
+    <div id="editor-container"></div>
   </div>
+</div>
 
+</div>
+
+<input type="hidden" name="note" id="hidden-note-input">
+
+<br>
+<div class="text-center">
+  <button type="submit" class="btn btn-primary">Save Note</button>
+  </div>
+  </form>
   <div id="loading-spinner"></div>
 </form>
 
-<!-- Fancy Toast -->
+{% if edit_note %}
+  <div id="note-content" style="display: none;">{{ edit_note.data|safe }}</div>
+{% endif %}
+
+
+<style>
+  /* Fullscreen form hides other elements except editor container */
+form#noteForm:fullscreen > *:not(#editor-full-container) {
+  display: none !important;
+}
+
+/* Show editor container fully in fullscreen */
+form#noteForm:fullscreen #editor-full-container {
+  display: flex !important;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+/* Editor wrapper and container full height in fullscreen */
+form#noteForm:fullscreen #editor-wrapper,
+form#noteForm:fullscreen #editor-container {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: none;
+  box-shadow: none;
+}
+
+/* Quill editor fills container */
+form#noteForm:fullscreen #editor-container .ql-editor {
+  height: 100% !important;
+  overflow-y: auto;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Light mode fullscreen background (white) */
+body:not(.dark-mode) form#noteForm:fullscreen #editor-wrapper,
+body:not(.dark-mode) form#noteForm:fullscreen #editor-container {
+  background-color: black !important;
+  color: white !important;
+}
+
+body:not(.dark-mode) form#noteForm:fullscreen #editor-container .ql-editor {
+  background-color: white !important;
+  color: white !important;
+}
+/* In both dark and light mode, preserve user-selected background */
+form#noteForm:fullscreen #editor-wrapper,
+form#noteForm:fullscreen #editor-container,
+form#noteForm:fullscreen #editor-container .ql-editor {
+  background-color: inherit !important;
+  color: inherit !important;
+}
+
+
+/* Title styling in fullscreen */
+form#noteForm:fullscreen #note-title {
+  display: block !important;
+  font-size: 24px;
+  margin: 10px 0;
+  text-align: center;
+  font-weight: bold;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: inherit;
+}
+/* Title white in light mode fullscreen */
+body:not(.dark-mode) form#noteForm:fullscreen #note-title {
+  color: white !important;
+}
+
+/* Title inherit (white) in dark mode fullscreen */
+body.dark-mode form#noteForm:fullscreen #note-title {
+  color: inherit !important;
+}
+/* Remove forced fullscreen background color */
+/* Remove any forced bg/color for editor in fullscreen */
+form#noteForm:fullscreen #editor-wrapper,
+form#noteForm:fullscreen #editor-container {
+  background-color: inherit !important;
+  color: inherit !important;
+}
+
+/* Keep fullscreen title visible and white in light mode */
+form#noteForm:fullscreen #note-title {
+  display: block !important;
+  font-size: 24px;
+  margin: 10px 0;
+  text-align: center;
+  font-weight: bold;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: white !important;  /* White text in fullscreen */
+}
+
+
+/* Custom fonts */
+/* Color Picker Grid */
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 28px);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Swatch Style */
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  box-shadow: 0 0 2px rgba(0,0,0,0.3);
+  transition: border 0.2s, transform 0.2s;
+}
+
+.color-swatch:hover {
+  transform: scale(1.15);
+  border: 2px solid #666;
+}
+
+/* Selected state — light mode */
+.color-swatch.selected {
+  border: 2px solid #000;
+}
+
+/* Selected state — dark mode */
+body.dark-mode .color-swatch.selected {
+  border: 2px solid #fff;
+}
+
+/* Hover state in dark mode */
+body.dark-mode .color-swatch:hover {
+  border: 2px solid #fff;
+}
+
+
+
+.ql-font-arial { font-family: Arial, sans-serif; }
+.ql-font-georgia { font-family: Georgia, serif; }
+.ql-font-impact { font-family: Impact, sans-serif; }
+.ql-font-comic-sans { font-family: "Comic Sans MS", cursive, sans-serif; }
+.ql-font-times-new-roman { font-family: "Times New Roman", Times, serif; }
+.ql-font-verdana { font-family: Verdana, sans-serif; }
+.ql-font-courier-new { font-family: "Courier New", Courier, monospace; }
+.ql-font-tahoma { font-family: Tahoma, sans-serif; }
+.ql-font-calibri { font-family: Calibri, sans-serif; }
+.ql-font-lucida-console { font-family: "Lucida Console", monospace; }
+/* Dark Mode Background & Foreground */
+/* Keep text white in dark mode on hover */
+body.dark-mode #mic-btn,
+body.dark-mode #fullscreen-btn,
+.fullscreen-note:fullscreen #mic-btn,
+.fullscreen-note:fullscreen #fullscreen-btn {
+  background: transparent !important;
+  color: #fff !important;
+}
+
+body.dark-mode #mic-btn:hover,
+body.dark-mode #fullscreen-btn:hover,
+.fullscreen-note:fullscreen #mic-btn:hover,
+.fullscreen-note:fullscreen #fullscreen-btn:hover {
+  background: rgba(255, 255, 255, 0.15) !important; /* slightly lighter black */
+  color: #fff !important; /* keep white text/icons */
+}
+
+body.dark-mode #mic-btn img,
+body.dark-mode #fullscreen-btn img,
+.fullscreen-note:fullscreen #mic-btn img,
+.fullscreen-note:fullscreen #fullscreen-btn img {
+  filter: invert(1) !important; /* keep white icons */
+}
+
+/* Title styling */
+#note-title {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 20px;
+  font-weight: bold;
+  text-align: center;
+  width: 100%;
+  margin: 8px 0 12px 0;
+  color: inherit;
+}
+#note-title::placeholder {
+  color: rgba(255,255,255,0.6);
+}
+body:not(.dark-mode) #note-title::placeholder {
+  color: rgba(0,0,0,0.5);
+}
+.fullscreen-note:fullscreen #note-title {
+  font-size: 24px;
+}
+/* Toast styling */
+#note-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(50px);
+  background: #333;
+  color: #fff;
+  padding: 12px 22px;
+  border-radius: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.4s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 9999;
+  font-size: 14px;
+}
+
+/* Show state */
+#note-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+/* Hide everything in fullscreen except title + quill editor */
+form#noteForm:fullscreen > *:not(#editor-full-container) {
+  display: none !important;
+}
+
+form#noteForm:fullscreen #editor-full-container {
+  display: flex !important;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+/* Show title inside fullscreen */
+form#noteForm:fullscreen #note-title {
+  display: block !important;
+  font-size: 24px;
+  margin: 10px 0;
+  text-align: center;
+  font-weight: bold;
+  color: inherit;
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+/* Quill editor expands fully in fullscreen */
+form#noteForm:fullscreen #editor-wrapper,
+form#noteForm:fullscreen #editor-container {
+  background: #121212 ;
+  color: white ;
+}
+
+/* Remove duplicate color-grid and color-swatch styles here to avoid conflicts */
+
+
+
+
+
+
+</style>
 <div id="note-toast">
   <span class="tick">✅</span>
   <span class="toast-text">Note added!</span>
@@ -151,99 +457,268 @@
 {% endblock %}
 
 {% block javascript %}
-<script>
-  window.editNote = {{ edit_note_json | safe }};
-</script>
+<!-- Cleaned and Merged Scripts for Quill Editor -->
 
+<!-- Quill & Plugins -->
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
-
-<style>
-  /* Quill font mapping */
-.ql-font-arial { font-family: Arial, sans-serif; }
-.ql-font-georgia { font-family: Georgia, serif; }
-.ql-font-impact { font-family: Impact, sans-serif; }
-.ql-font-comic-sans { font-family: "Comic Sans MS", cursive, sans-serif; }
-.ql-font-times-new-roman { font-family: "Times New Roman", serif; }
-.ql-font-verdana { font-family: Verdana, sans-serif; }
-.ql-font-courier-new { font-family: "Courier New", monospace; }
-.ql-font-tahoma { font-family: Tahoma, sans-serif; }
-.ql-font-calibri { font-family: Calibri, sans-serif; }
-.ql-font-lucida-console { font-family: "Lucida Console", monospace; }
-
-/* Toast styling */
-#note-toast {
-  position: absolute; /* instead of fixed */
-  left: 50%;
-  transform: translateX(-50%) scale(0.9);
-  background: #222;
-  color: white;
-  padding: 10px 18px;
-  border-radius: 8px;
-  font-size: 15px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  opacity: 0;
-  transition: all 0.3s ease;
-  z-index: 9999;
-}
-#note-toast.show {
-  opacity: 1;
-  transform: translateX(-50%) scale(1);
-}
-
-#note-toast .tick {
-  font-size: 20px;
-  font-weight: bold;
-  color: #28a745;
-  animation: tickPop 0.5s ease forwards;
-}
-@keyframes tickPop {
-  0% { transform: scale(0); opacity: 0; }
-  50% { transform: scale(1.3); opacity: 1; }
-  100% { transform: scale(1); }
-}
-
-/* Dark mode mic + fullscreen */
-body.dark-mode #mic-btn, body.dark-mode #fullscreen-btn {
-  background: #222 !important;
-  border: 1px solid #444 !important;
-}
-body.dark-mode #mic-btn img, body.dark-mode #fullscreen-btn img {
-  filter: brightness(0.9) invert(1) !important;
-}
-</style>
-
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
 <script>
-/* Quill setup */
-const Font = Quill.import('attributors/class/font');
-Font.whitelist = ['arial','georgia','impact','comic-sans','times-new-roman','verdana','courier-new','tahoma','calibri','lucida-console'];
-Quill.register(Font, true);
+  document.getElementById('noteForm').onsubmit = function() {
+    document.getElementById('hidden-note-input').value = quill.root.innerHTML;
+  }
+</script>
+<script>
+  // Load note from localStorage if available
+  window.editNote = JSON.parse(localStorage.getItem('editNote') || 'null');
+  localStorage.removeItem('editNote');
 
-const Size = Quill.import('attributors/style/size');
-Size.whitelist = ['8px','9px','10px','11px','12px','14px','16px','18px','20px','22px','24px','26px','36px','48px','72px','96px'];
-Quill.register(Size, true);
+  let quill;
 
-const quill = new Quill('#editor-container', {
-  theme: 'snow',
-  modules: { toolbar: '#toolbar' }
+  document.addEventListener('DOMContentLoaded', () => {
+    const editorContainer = document.getElementById('editor-container');
+    if (!editorContainer) return console.error('#editor-container not found');
+
+    // Register fonts and sizes
+    const Font = Quill.import('attributors/class/font');
+    Font.whitelist = ['arial','georgia','impact','comic-sans','times-new-roman','verdana','courier-new','tahoma','calibri','lucida-console'];
+    Quill.register(Font, true);
+    const Size = Quill.import('attributors/style/size');
+    Size.whitelist = ['8px','9px','10px','11px','12px','14px','16px','18px','20px','22px','24px','26px','36px','48px','72px','96px'];
+    Quill.register(Size, true);
+
+    // Init Quill
+    quill = new Quill('#editor-container', {
+      theme: 'snow',
+      modules: { toolbar: '#toolbar' }
+    });
+    
+    {% if edit_note %}
+    quill.root.innerHTML = {{ edit_note.data | tojson | safe }};
+    document.getElementById('note-title').value = {{ edit_note.title | tojson }};
+    document.getElementById('tags').value = {{ edit_note.tags | tojson }};
+    document.getElementById('note_bg').value = {{ edit_note.bg_color | tojson }};
+    document.getElementById('is_pinned').checked = {{ 'true' if edit_note.is_pinned else 'false' }};
+  {% endif %}
+  
+    // Init Select2
+    $('.select2').select2();
+
+    // Load note from editNote (localStorage or server)
+    if (window.editNote && window.editNote.data) {
+      try {
+        const delta = JSON.parse(window.editNote.data);
+        quill.setContents(delta);
+      } catch (e) {
+        quill.root.innerHTML = window.editNote.data;
+      }
+      document.getElementById('note_id').value = window.editNote.id || '';
+      document.getElementById('note-title').value = window.editNote.title || '';
+      document.getElementById('tags').value = window.editNote.tags || '';
+      document.getElementById('is_pinned').checked = window.editNote.is_pinned || false;
+      document.getElementById('note_bg').value = window.editNote.bg_color || 'default';
+      applyEditorBackground(window.editNote.bg_color || 'default');
+    } else {
+      applyEditorBackground('default');
+    }
+
+    // Color swatch click handling
+    document.querySelectorAll('.color-swatch').forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+        swatch.classList.add('selected');
+        const bgColor = swatch.getAttribute('data-color');
+        document.getElementById('note_bg').value = bgColor;
+        applyEditorBackground(bgColor);
+      });
+    });
+    
+    // Fullscreen toggle
+    document.getElementById('fullscreen-btn')?.addEventListener('click', () => {
+      const form = document.querySelector('form#noteForm');
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        form.requestFullscreen?.();
+      }
+    });
+
+    // Microphone (Speech Recognition)
+    document.getElementById('mic-btn')?.addEventListener('click', () => {
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      recognition.start();
+      recognition.onresult = e => quill.setText(e.results[0][0].transcript);
+      recognition.onerror = e => console.error('Speech error:', e.error);
+    });
+
+    // Submit handler
+    document.getElementById('noteForm').onsubmit = async e => {
+      e.preventDefault();
+      const plainText = quill.getText().trim();
+      if (!plainText) return alert("Note cannot be empty!");
+
+      document.getElementById('note_bg').value =
+        document.querySelector('.color-swatch.selected')?.getAttribute('data-color') || 'default';
+
+      document.getElementById('note').value = quill.root.innerHTML;
+
+      try {
+        const res = await fetch("/home", {
+          method: "POST",
+          body: new FormData(e.target)
+        });
+        if (res.ok) {
+          showNoteToast("Note saved!");
+          if (!document.getElementById("note_id").value) {
+            quill.root.innerHTML = "";
+            e.target.reset();
+          }
+        }
+      } catch (err) {
+        alert("Network error.");
+      }
+    };
+
+    function applyEditorBackground(bg) {
+      const editor = document.querySelector('#editor-container .ql-editor');
+      const editorWrapper = document.getElementById('editor-wrapper');
+      if (!editor || !editorWrapper) return;
+
+      if (bg === 'default') {
+        editor.style.backgroundColor = '';
+        editor.style.color = '';
+        editorWrapper.style.backgroundColor = '';
+      } else {
+        const textColor = bg === 'black' ? 'white' : 'black';
+        editor.style.backgroundColor = bg;
+        editor.style.color = textColor;
+        editorWrapper.style.backgroundColor = bg;
+      }
+    }
+
+    function showNoteToast(message) {
+      const toast = document.getElementById("note-toast");
+      if (!toast) return;
+      toast.querySelector(".toast-text").textContent = message;
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 2500);
+    }
+  });
+</script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById('noteForm');
+    const hiddenInput = document.getElementById('hidden-note-input');
+
+    form.onsubmit = function () {
+        hiddenInput.value = quill.root.innerHTML;
+    };
+
+    {% if edit_note %}
+    // Pre-fill editor for editing
+    quill.root.innerHTML = {{ edit_note.data | tojson | safe }};
+    {% endif %}
 });
 
-/* Toast function */
-function showNoteToast(message) {
-  const toast = document.getElementById("note-toast");
-  toast.querySelector(".toast-text").textContent = message;
 
-  // Position toast at current scroll top + some margin
-  toast.style.top = (window.scrollY + 20) + "px";
+document.getElementById('editForm').addEventListener('submit', function(e) {
+    e.preventDefault();
 
-  toast.classList.add("show");
-  setTimeout(() => toast.classList.remove("show"), 2500);
+    const formData = new FormData(this);
+
+    fetch(this.action, {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message); // your existing toast
+            closeEditMode(); // function to hide edit UI
+            refreshNotesList(); // optional: reload note list
+        } else {
+            showToast("Failed to update note", "error");
+        }
+    })
+    .catch(() => {
+        showToast("Server error", "error");
+    });
+});
+function handleNoteForm(formId) {
+    const form = document.getElementById(formId);
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault(); // stop page reload
+
+        const formData = new FormData(this);
+
+        fetch(this.action, {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message);
+                this.reset(); // clear form if adding
+                refreshNotesList(); // reload notes without page refresh
+            } else {
+                showToast("Error saving note", "error");
+            }
+        })
+        .catch(() => {
+            showToast("Server error", "error");
+        });
+    });
 }
 
+// Apply to both add and edit forms
+handleNoteForm('noteForm');   // for adding new notes
+handleNoteForm('editForm');   // for editing notes
 
-/* Save form */
+document.addEventListener("submit", function (e) {
+    if (e.target && e.target.id === "saveNoteForm") {
+        e.preventDefault();
+                document.addEventListener("DOMContentLoaded", function () {
+    const saveForm = document.getElementById("saveNoteForm");
+    if (saveForm) {
+        saveForm.addEventListener("submit", async function (e) {
+            e.preventDefault();
+            
+            // Gather form data
+            const formData = new FormData(saveForm);
+            formData.set("note", quill.root.innerHTML);
+
+            const response = await fetch("/save_note", {
+                method: "POST",
+                body: formData
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                showToast("Note saved successfully!", "success");
+            } else {
+                showToast("Error saving note", "error");
+            }
+        });
+    }
+});
+    }
+});
+container.innerHTML = formHTML;
+
+const saveForm = document.getElementById("saveNoteForm");
+if (saveForm) {
+    saveForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        // your save note fetch here
+    });
+}
 document.getElementById('noteForm').onsubmit = async e => {
   e.preventDefault();
   const plainText = quill.getText().trim();
@@ -264,31 +739,99 @@ document.getElementById('noteForm').onsubmit = async e => {
     alert("Network error.");
   }
 };
-
-/* Edit mode */
-document.addEventListener("DOMContentLoaded", () => {
-  if (window.editNote && window.editNote.data) {
-    document.getElementById("note_id").value = window.editNote.id;
-    document.getElementById("note-title").value = window.editNote.title || "";
-    document.getElementById("tags").value = window.editNote.tags || "";
-    document.getElementById("is_pinned").checked = window.editNote.is_pinned || false;
-    document.getElementById("bg-color-picker").value = window.editNote.bg_color || "default";
-    applyEditorBackground(window.editNote.bg_color || "default");
-    quill.root.innerHTML = window.editNote.data;
-  }
-});
-
-/* Background color handling */
-function applyEditorBackground(bg) {
-  const editor = document.querySelector('#editor-container .ql-editor');
-  if (bg === 'default') {
-    editor.style.removeProperty('background-color');
-    editor.style.removeProperty('color');
-  } else {
-    const textColor = (bg === 'black') ? 'white' : 'black';
-    editor.style.backgroundColor = bg;
-    editor.style.color = textColor;
-  }
-}
 </script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const titleInput = document.getElementById("note-title");
+    const quillEditor = window.quill; // Assuming you already initialize Quill globally
+    const saveIndicator = document.createElement("div");
+    saveIndicator.style.position = "fixed";
+    saveIndicator.style.bottom = "10px";
+    saveIndicator.style.right = "10px";
+    saveIndicator.style.padding = "6px 12px";
+    saveIndicator.style.background = "rgba(0,0,0,0.7)";
+    saveIndicator.style.color = "#fff";
+    saveIndicator.style.borderRadius = "5px";
+    saveIndicator.style.fontSize = "12px";
+    saveIndicator.style.display = "none";
+    document.body.appendChild(saveIndicator);
+
+    let saveTimeout;
+
+    function showSaving(status) {
+        saveIndicator.textContent = status;
+        saveIndicator.style.display = "block";
+        if (status === "Saved") {
+            setTimeout(() => saveIndicator.style.display = "none", 1000);
+        }
+    }
+
+    function autosaveNote() {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+            const form = document.getElementById("saveNoteForm");
+            const formData = new FormData(form);
+            formData.set("note", quillEditor.root.innerHTML);
+
+            showSaving("Saving...");
+
+            fetch("/save_note", {
+                method: "POST",
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showSaving("Saved");
+                } else {
+                    showSaving("Error");
+                }
+            })
+            .catch(() => {
+                showSaving("Error");
+            });
+        }, 1500); // 1.5s debounce
+    }
+
+    // Listen for typing in title and editor
+    titleInput.addEventListener("input", autosaveNote);
+    quillEditor.on("text-change", autosaveNote);
+});
+let autosaveTimeout;
+const AUTOSAVE_INTERVAL = 2000; // ms after user stops typing
+
+function triggerAutosave() {
+    clearTimeout(autosaveTimeout);
+    autosaveTimeout = setTimeout(() => {
+        const title = document.getElementById("note-title").value;
+        const noteContent = quill.root.innerHTML;
+
+        if (!title.trim() && !noteContent.trim()) return; // skip empty
+
+        fetch("/save_note", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                title: title,
+                note: noteContent,
+                is_autosave: true // 🚀 mark as autosave
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) {
+                console.error("Autosave failed:", data.message);
+            }
+        })
+        .catch(err => console.error("Autosave error:", err));
+    }, AUTOSAVE_INTERVAL);
+}
+
+// Trigger autosave when typing
+document.getElementById("note-title").addEventListener("input", triggerAutosave);
+quill.on("text-change", triggerAutosave);
+
+</script>
+
+
 {% endblock %}
