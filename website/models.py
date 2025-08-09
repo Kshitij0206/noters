@@ -17,7 +17,10 @@ class Note(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     summary = db.Column(db.Text, nullable=True)
     title = db.Column(db.String(255), nullable=False)
-    bg_color = db.Column(db.String(50), default="default")
+    # Add order_index to Note model
+    order_index = db.Column(db.Integer, default=0)
+    folder_id = db.Column(db.Integer, db.ForeignKey('folder.id'), nullable=True)
+    folder = db.relationship('Folder', backref='notes')
 
 
 
@@ -82,3 +85,11 @@ class Notification(db.Model):
             "time": self.time.strftime("%Y-%m-%d %H:%M:%S"),
             "is_read": self.is_read
         }
+class Folder(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), nullable=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey('folder.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    parent = db.relationship('Folder', remote_side=[id], backref='subfolders')
+

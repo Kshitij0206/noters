@@ -5,7 +5,7 @@
 {% block content %}
 <h2 class="text-center mb-4">All Saved Notes</h2>
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 <!-- Filter & Sort -->
 <div class="form-group mb-3">
   <label for="tagFilter">Filter by Tag:</label>
@@ -29,10 +29,13 @@
 <div class="container" id="notes-container">
   <div class="row">
     {% for note in notes %}
-      <div class="col-md-6 mb-4 note-card" data-tags="{{ note.tags | default('') }}">
-        <div class="p-3 shadow-sm rounded position-relative fullscreen-note" 
-             id="note-{{ note.id }}" 
-             style="background-color: {{ note.bg_color or 'white' }}">
+      <div class="col-md-6 mb-4 note-card" data-tags="{{ note.tags | default('') }}" data-note-id="{{ note.id }}" style="background-color: {{note.bg_color or white}};">
+
+  <div class="p-3 shadow-sm rounded position-relative fullscreen-note" 
+       id="note-{{ note.id }}"
+       draggable="true" 
+       style="background-color: {{note.bg_color or white}};"
+>
 
           <!-- ✅ Note Title -->
           <h5 class="fw-bold mb-2" style="word-break: break-word;">
@@ -99,15 +102,17 @@
           {% if note.is_pinned %}
             <span style="position: absolute; top: 8px; right: 12px; font-size: 20px;" title="Pinned">📌</span>
           {% else %}
-            <span style="position: absolute; top: 8px; right: 12px; font-size: 20px; opacity: 0.3;" title="Not pinned">📌</span>
+            <span style="position: absolute; top: 8px; right: 12px; font-size: 20px; opacity: 0.3;" title="Pinned">📌</span>
           {% endif %}
 
           <!-- Tags & Note Actions -->
           <div class="d-flex justify-content-between mt-2">
             <div>
-              {% for tag in note.tags.split(',') if tag.strip() %}
-                <span class="badge bg-info text-dark">{{ tag.strip() }}</span>
-              {% endfor %}
+              {% set tags_str = note.tags if note.tags else '' %}
+{% for tag in tags_str.split(',') if tag.strip() %}
+  <span class="badge bg-info text-dark">{{ tag.strip() }}</span>
+{% endfor %}
+
             </div>
             <div class="note-actions">
               <a href="{{ url_for('views.edit_note', note_id=note.id) }}"
@@ -387,6 +392,64 @@ document.querySelectorAll('.edit-note-btn').forEach(button => {
       summaryEl.textContent = '❌ Error connecting to summarizer.';
     });
 }
+document.addEventListener('DOMContentLoaded', function () {
+  const notesContainer = document.querySelector('#notes-container .row');
+  if (!notesContainer) return;
+
+  // Separate pinned and unpinned notes
+  const pinnedNotes = [];
+  const unpinnedNotes = [];
+
+  notesContainer.querySelectorAll('.note-card').forEach(card => {
+    // Detect pinned notes by some pinned indicator, adjust this selector if needed
+    const pinIcon = card.querySelector('span[title="Pinned"]');
+    const isPinned = pinIcon && pinIcon.style.opacity !== '0.3';
+    if (isPinned) {
+      pinnedNotes.push(card);
+    } else {
+      unpinnedNotes.push(card);
+    }
+  });
+
+  // Clear container
+  notesContainer.innerHTML = '';
+
+  // Append pinned notes first
+  pinnedNotes.forEach(p => notesContainer.appendChild(p));
+
+  // Create sortable container for unpinned notes
+  const sortableContainer = document.createElement('div');
+  sortableContainer.id = 'sortable-notes';
+  sortableContainer.classList.add('row');
+
+  // Append unpinned notes into sortable container
+  unpinnedNotes.forEach(u => sortableContainer.appendChild(u));
+  notesContainer.appendChild(sortableContainer);
+
+  // Initialize SortableJS on unpinned notes container
+  new Sortable(sortableContainer, {
+    animation: 150,
+    chosenClass: "sortable-chosen",
+    dragClass: "sortable-drag",
+    onEnd: function (evt) {
+      const order = [...sortableContainer.children].map(child => {
+        return child.dataset.noteId;  // Use data-note-id from .note-card
+      });
+
+      fetch('/update-note-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order }),
+      })
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to save note order');
+        showActionToast("Note order saved!");  // Your existing toast function
+      })
+      .catch(err => alert(err.message));
+    }
+  });
+});
+
 
 </script>
 

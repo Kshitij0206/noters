@@ -19,7 +19,9 @@ with app.app_context():
             ("is_locked", "BOOLEAN DEFAULT 0"),
             ("summary", "TEXT"),
             ("title", "TEXT"),
-            ("bg_color", "VARCHAR(50) DEFAULT 'default'")
+            ("bg_color", "VARCHAR(50) DEFAULT 'default'"),
+            ("order_index", "INTEGER DEFAULT 0"),
+            ("folder_id", "INTEGER"),
         ]
 
         for col_name, col_type in columns_to_add:
@@ -102,4 +104,25 @@ with app.app_context():
                 print("⚠️ Could not add 'profile_pic_url' to 'user':", e)
         else:
             print("ℹ️ Column 'profile_pic_url' already exists in 'user'.")
-
+        try:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS note_order (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    note_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    order_index INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (note_id) REFERENCES note(id),
+                    FOREIGN KEY (user_id) REFERENCES user(id)
+                )
+            """))
+            print("✅ Table 'note_order' created or already exists.")
+        except Exception as e:
+            print("⚠️ Could not create 'note_order' table:", e)
+        if "folder_id" not in note_cols:
+            try:
+                conn.execute(text("ALTER TABLE note ADD COLUMN folder_id INTEGER"))
+                print("✅ Column 'folder_id' added to 'note'.")
+            except Exception as e:
+                print("⚠️ Could not add 'folder_id' to 'note':", e)
+        else:
+            print("ℹ️ Column 'folder_id' already exists in 'note'.")

@@ -23,6 +23,13 @@
     transform: translateY(5px);
     transition: opacity 0.3s ease, transform 0.3s ease;
   }
+  @media (prefers-color-scheme: dark) {
+  body {
+    background-color: #121212;
+    color: #eee;
+  }
+  /* Other dark mode styles */
+}
 
   .page-transition.visible {
     opacity: 1;
@@ -339,6 +346,11 @@
             });
           }
         });
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+  // Send request to backend to enable dark mode in session or toggle class on body
+  document.body.classList.add('dark-mode');
+}
+
       </script>
       <!-- Footer -->
   <footer class="footer mt-5">

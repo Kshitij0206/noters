@@ -73,11 +73,11 @@
   <div class="color-swatch" data-color="#b0c4de" style="background:#b0c4de" title="Light Steel Blue"></div>
 </div>
 
-  <input type="hidden" id="note_bg" name="bg_color" value="default">
+  <input type="hidden" id="note_bg" name="note_bg" value="default">
   {% if edit_note %}
 <script>
   document.addEventListener("DOMContentLoaded", function() {
-      document.getElementById("note_bg").value = "{{ edit_note.note_bg }}";
+      document.getElementById("note_bg").value = "{{ edit_note.bg }}";
       document.querySelectorAll(".color-swatch").forEach(function(swatch) {
           if (swatch.getAttribute("data-color") === "{{ edit_note.note_bg }}") {
               swatch.classList.add("selected");
@@ -169,7 +169,13 @@
   
   <!-- Quill Editor -->
   <div id="editor-wrapper" style="border: 1px solid #ccc;">
-    <div id="editor-container"></div>
+    <!-- Suppose you have a variable note.bg_color available -->
+<div id="editor-container" 
+     style="background-color: {{ edit_note.bg_color if edit_note else '' }};" 
+     data-bg-color="{{ edit_note.bg_color if edit_note else '' }}">
+</div>
+
+
   </div>
 </div>
 
@@ -441,14 +447,6 @@ form#noteForm:fullscreen #editor-container {
   background: #121212 ;
   color: white ;
 }
-
-/* Remove duplicate color-grid and color-swatch styles here to avoid conflicts */
-
-
-
-
-
-
 </style>
 <div id="note-toast">
   <span class="tick">✅</span>
@@ -830,6 +828,21 @@ function triggerAutosave() {
 // Trigger autosave when typing
 document.getElementById("note-title").addEventListener("input", triggerAutosave);
 quill.on("text-change", triggerAutosave);
+const bgColor = "{{ edit_note.bg_color if edit_note else '' }}";
+
+const editor = document.querySelector('#editor-container .ql-editor');
+
+function getRandomColor() {
+  // You can customize this palette
+  const colors = ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff', '#a0c4ff', '#bdb2ff', '#ffc6ff'];
+  return colors[Math.floor(Math.random() * colors.length)];
+}
+
+if (bgColor && bgColor.trim() !== '') {
+  editor.style.backgroundColor = bgColor;
+} else {
+  editor.style.backgroundColor = getRandomColor();
+}
 
 </script>
 

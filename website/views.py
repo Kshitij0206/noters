@@ -12,6 +12,14 @@ import requests
 from dotenv import load_dotenv
 import os
 load_dotenv()
+import random
+
+BG_COLORS = [
+    "default", "white", "black", "#f8f9fa", "#fff3cd", "#d4edda", "#f8d7da", "#d1ecf1",
+    "#e1bee7", "#ffccbc", "#c8e6c9", "#f0f4c3", "#ffe4e1", "#fafad2", "#e6e6fa",
+    "#f5f5dc", "#ffe4b5", "#add8e6", "#90ee90", "#ffb6c1", "#ffd700", "#40e0d0",
+    "#ff69b4", "#b0c4de"
+]
 
 api_key = os.getenv('OPENROUTER_API_KEY')
 def add_notification(message):
@@ -64,13 +72,12 @@ def home():
     if request.method == 'POST':
         note_id = request.form.get('note_id')
         note_text = request.form.get('note')
-        note_bg = request.form.get('note_bg') or 'white'
+        note_bg = request.form.get('note_bg') or 'white'  # store in a separate variable
         tags = request.form.get('tags') or ''
         is_pinned = 'is_pinned' in request.form
         is_completed = 'is_completed' in request.form
         password = request.form.get('password', '').strip()
 
-        # Prevent saving empty notes
         if is_blank_quill(note_text):
             return jsonify({"success": False, "error": "Note cannot be empty"}), 400
 
@@ -80,7 +87,7 @@ def home():
                 db.session.add(NoteVersion(note_id=note.id, version_data=note.data))
 
                 note.data = note_text
-                note.bg_color = note_bg
+                note.bg_color = note_bg  # assign here after note exists
                 note.tags = tags
                 note.is_pinned = is_pinned
                 note.is_completed = is_completed
@@ -116,7 +123,7 @@ def home():
             return redirect(url_for('views.home'))
 
 
-    # ... (existing GET request logic remains unchanged)
+        # ... (existing GET request logic remains unchanged)
 
 
     # ------------------ GET REQUEST ------------------
@@ -128,13 +135,15 @@ def home():
             flash('Note not found or permission denied.', category='error')
             return redirect(url_for('views.home'))
 
-    # Format dates to IST
+    # If not editing an existing note, prepare a default bg_color for the new note form
+    default_bg_color = random.choice(BG_COLORS) if not edit_note else edit_note.bg_color or "white"
+
+    # Format dates to IST for existing notes
     ist = pytz.timezone('Asia/Kolkata')
     for note in current_user.notes:
         note.date = note.date.astimezone(ist)
         note.last_updated = note.last_updated.astimezone(ist)
 
-    # Prepare JSON for saved notes
     notes_json = [
         {
             'id': n.id,
@@ -143,7 +152,6 @@ def home():
         } for n in current_user.notes
     ]
 
-    # Convert edit note to JSON for JavaScript
     def note_to_dict(note):
         return {
             "id": note.id,
@@ -161,6 +169,7 @@ def home():
         notes_json=notes_json,
         edit_note=edit_note,
         edit_note_json=json.dumps(note_to_dict(edit_note)) if edit_note else 'null',
+        default_bg_color=default_bg_color,  # pass this to template
         dark_mode=session.get('dark_mode', False)
     )
 
@@ -170,32 +179,38 @@ def home():
 def saved_notes():
     sort = request.args.get('sort', 'pinned_date')
     tag_filter = request.args.get('tag')
+
+    # Start with query object, no .all() here
     query = Note.query.filter_by(user_id=current_user.id)
 
+    # Apply tag filter if any
     if tag_filter:
         query = query.filter(Note.tags.ilike(f"%{tag_filter}%"))
 
+    # Apply sorting
     if sort == 'title_asc':
-        notes = query.order_by(Note.is_pinned.desc(), Note.title.asc()).all()
+        query = query.order_by(Note.is_pinned.desc(), Note.title.asc())
     elif sort == 'title_desc':
-        notes = query.order_by(Note.is_pinned.desc(), Note.title.desc()).all()
+        query = query.order_by(Note.is_pinned.desc(), Note.title.desc())
     elif sort == 'date_asc':
-        notes = query.order_by(Note.is_pinned.desc(), Note.date.asc()).all()
+        query = query.order_by(Note.is_pinned.desc(), Note.date.asc())
     else:
-        notes = query.order_by(Note.is_pinned.desc(), Note.date.desc()).all()
+        query = query.order_by(Note.is_pinned.desc(), Note.date.desc())
 
+    # Finally get all results here
+    notes = query.all()
+
+    # Rest of your code (timezones, tags, json prep)
     ist = pytz.timezone('Asia/Kolkata')
     for note in notes:
         note.date = note.date.astimezone(ist)
         note.last_updated = note.last_updated.astimezone(ist)
 
-    # Collect all tags
     all_tags = set()
     for note in notes:
         if note.tags:
             all_tags.update(tag.strip() for tag in note.tags.split(',') if tag.strip())
 
-    # Prepare note previews
     notes_json = []
     for n in notes:
         try:
@@ -226,6 +241,7 @@ def saved_notes():
         selected_tag=tag_filter,
         dark_mode=session.get('dark_mode', False)
     )
+
 
 @views.route('/pin-toggle/<int:note_id>', methods=['POST'])
 @login_required
@@ -329,21 +345,36 @@ def download_pdf(note_id):
     if note.user_id != current_user.id:
         flash("You do not have permission to download this note.", "error")
         return redirect(url_for("views.saved_notes"))
-    note_html = quill_delta_to_html(note.data)
+
+    bg_color = note.bg_color or "white"
+    note_html = quill_delta_to_html(note.data)  # ensure this returns safe HTML
+
     html = f"""
-    <html><head><style>
-    body {{ font-family: Arial, sans-serif; padding: 20px; }}
-    .note-content {{ background-color: {note.bg_color}; padding: 15px; border-radius: 10px; }}
-    </style></head><body>
-    <h2>Your Note</h2>
-    <div class="note-content">{note_html}</div>
-    </body></html>
+    <html>
+    <head>
+      <style>
+        body {{ font-family: Arial, sans-serif; padding: 20px; }}
+        .note-content {{
+            background-color: {bg_color};
+            padding: 15px;
+            border-radius: 10px;
+        }}
+      </style>
+    </head>
+    <body>
+      <h2>{note.title}</h2>
+      <div class="note-content">{note_html}</div>
+    </body>
+    </html>
     """
+
     result = io.BytesIO()
     pisa_status = pisa.CreatePDF(src=html, dest=result)
+
     if pisa_status.err:
         flash("Error generating PDF.", "error")
         return redirect(url_for("views.saved_notes"))
+
     result.seek(0)
     return send_file(result, download_name=f"{note.title}.pdf", as_attachment=True)
 
@@ -481,13 +512,13 @@ def edit_note(note_id):
     if request.method == 'POST':
         note_title = request.form.get('title')  # <-- add this
         note_text = request.form.get('note')
-        note_bg = request.form.get('note_bg') or 'white'
+        note.bg_color = request.form.get('note_bg') or 'white'
         tags = request.form.get('tags')
         is_pinned = request.form.get('is_pinned') == 'true'
 
         note.title = note_title  # <-- update the title
         note.data = note_text
-        note.note_bg = note_bg
+        note.bg_color = note.bg_color
         note.tags = tags
         note.is_pinned = is_pinned
         note.updated_at = datetime.utcnow()
@@ -540,7 +571,17 @@ def add_note_to_history(note_id, title, content, user_id):
     db.session.add(version)
     db.session.commit()
 def save_or_update_note_in_db(title, note_content, user_id):
-    raise NotImplementedError
+    # Try to find a note by title or create a new note
+    note = Note.query.filter_by(title=title, user_id=user_id).first()
+    if note:
+        note.data = note_content
+        note.last_updated = datetime.utcnow()
+    else:
+        note = Note(title=title, data=note_content, user_id=user_id, last_updated=datetime.utcnow())
+        db.session.add(note)
+    db.session.commit()
+    return note
+
 import os
 from flask import (
     render_template, request, redirect, url_for, flash, current_app
@@ -605,4 +646,78 @@ def settings():
         current_app.logger.error(f"Settings update error: {e}")
 
     return render_template('settings.html', user=user, total_notes=total_notes)
+
+@views.route('/note/<int:note_id>/restore/<int:version_id>', methods=['POST'])
+@login_required
+def restore_version(note_id, version_id):
+    note = Note.query.get_or_404(note_id)
+    if note.user_id != current_user.id:
+        flash("Unauthorized", "error")
+        return redirect(url_for('views.saved_notes'))
+
+    version = NoteVersion.query.filter_by(id=version_id, note_id=note_id).first_or_404()
+
+    # Save current version before restoring (optional)
+    db.session.add(NoteVersion(note_id=note.id, version_data=note.data))
+
+    # Restore version content
+    note.data = version.version_data
+    note.last_updated = datetime.utcnow()
+
+    db.session.commit()
+    flash("Note restored to selected version.", "success")
+    return redirect(url_for('views.note_history', note_id=note_id))
+from flask import request, jsonify
+
+@views.route('/save-note-order', methods=['POST'])
+@login_required
+def save_note_order():
+    data = request.get_json()
+    order = data.get('order', [])
+    user_id = current_user.id
+
+    # Assuming you have a NoteOrder table to store order indexes per user
+    # Or update 'order_index' column in Note table for this user
+
+    for index, note_id in enumerate(order):
+        note = Note.query.filter_by(id=note_id, user_id=user_id).first()
+        if note:
+            note.order_index = index
+    db.session.commit()
+    return jsonify(success=True)
+from flask import request, jsonify
+from flask_login import current_user
+from website.models import Note
+from website import db
+
+@views.route('/update-note-order', methods=['POST'])
+def update_note_order():
+    data = request.get_json()
+    order = data.get('order', [])
+
+    if not order:
+        return jsonify({'error': 'No order provided'}), 400
+
+    # update order_index of notes for current user
+    for index, note_id in enumerate(order):
+        note = Note.query.filter_by(id=note_id, user_id=current_user.id).first()
+        if note:
+            note.order_index = index
+    db.session.commit()
+
+    return jsonify({'message': 'Order updated'})
+@views.route('/notes')
+def notes_view():
+    sort = request.args.get('sort', 'date_desc')
+    query = Note.query.filter_by(user_id=current_user.id)
+
+    if sort == 'order_custom':
+        query = query.order_by(Note.is_pinned.desc(), Note.order_index.asc())
+    elif sort == 'date_asc':
+        query = query.order_by(Note.date.asc())
+    else:  # default date_desc
+        query = query.order_by(Note.date.desc())
+
+    notes = query.all()
+    render_template('saved_notes.html',user=User)
 
