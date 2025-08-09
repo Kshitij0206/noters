@@ -239,23 +239,19 @@
         {% endif %}
 
       {# If user IS authenticated, show these links #}
-      {% else %}
-        {% if request.endpoint not in ['auth.login', 'auth.sign_up', 'auth.verify_signup_otp'] %}
-          {% if not hide_home %}
-            <a class="nav-item nav-link {% if request.endpoint == 'views.home' %}active{% endif %}" 
-              href="{{ url_for('views.home') }}">Home</a>
-          {% endif %}
-          <a class="nav-item nav-link" href="{{ url_for('views.settings') }}">Settings</a>
-          {% if not hide_saved_notes %}
-            <a class="nav-item nav-link {% if request.endpoint == 'views.saved_notes' %}active{% endif %}" 
-              href="{{ url_for('views.saved_notes') }}">Saved Notes</a>
-          {% endif %}
-        {% endif %}
-
-        <a class="nav-item nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
-
-      {% endif %}
-
+      {% if current.is_authenticated %}
+  {% if request.endpoint not in ['auth.login', 'auth.sign_up', 'auth.verify_signup_otp'] %}
+    {% if not hide_home %}
+      <a class="nav-item nav-link {% if request.endpoint == 'views.home' %}active{% endif %}" href="{{ url_for('views.home') }}">Home</a>
+    {% endif %}
+    <a class="nav-item nav-link" href="{{ url_for('views.settings') }}">Settings</a>
+    {% if not hide_saved_notes %}
+      <a class="nav-item nav-link {% if request.endpoint == 'views.saved_notes' %}active{% endif %}" href="{{ url_for('views.saved_notes') }}">Saved Notes</a>
+    {% endif %}
+    <a class="nav-item nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
+  {% endif %}
+{% endif %}
+{% endif %}
       </div>
     </div>
   </nav>
