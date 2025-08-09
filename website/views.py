@@ -55,11 +55,12 @@ def is_blank_quill(content):
 # -------------------
 # Routes
 # -------------------
+from flask import render_template  # or your blueprint import
+
 @views.route('/')
-def index():
-    if current_user.is_authenticated:
-        return redirect(url_for('views.home'))
-    return redirect(url_for('auth.login'))
+def intro():
+    return render_template('intro.html')
+
 
 @views.route('/toggle-dark-mode')
 def toggle_dark_mode():
