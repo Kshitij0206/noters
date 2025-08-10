@@ -338,6 +338,7 @@ function showActionToast(message) {
 function summarizeNote(noteId) {
   const note = window.savedNotes.find(n => n.id === noteId);
   if (!note) return;
+
   const loader = document.getElementById(`loader-${noteId}`);
   const summaryEl = document.getElementById(`summary-${noteId}`);
   const copyContainer = document.getElementById(`copy-summary-container-${noteId}`);
@@ -346,12 +347,40 @@ function summarizeNote(noteId) {
   summaryEl.textContent = '';
   copyContainer.style.display = 'none'; // hide before new summary
 
+  // Extract plain text from Quill ops
   let noteText = '';
   if (note.data && note.data.ops) {
     note.data.ops.forEach(op => {
       if (typeof op.insert === 'string') noteText += op.insert;
     });
   }
+
+  fetch('/summarize_note', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ content: noteText, title: note.title })
+})
+  .then(response => response.json())
+  .then(data => {
+    loader.style.display = 'none';
+
+    if (data.summary) {
+      summaryEl.textContent = data.summary;
+      copyContainer.style.display = 'block'; // show copy button if you have one
+
+      alert(`Summary created as new note: "${data.new_note_title}"`);
+      // Optional: redirect to the new note page
+      // window.location.href = `/note/${data.new_note_id}`;
+    } else {
+      summaryEl.textContent = 'Error: ' + (data.error || 'Could not generate summary.');
+    }
+  })
+  .catch(err => {
+    loader.style.display = 'none';
+    summaryEl.textContent = 'Error connecting to summarizer.';
+    console.error(err);
+  });
+}
 document.querySelectorAll('.edit-note-btn').forEach(button => {
   button.addEventListener('click', function (e) {
     e.preventDefault();
@@ -373,25 +402,6 @@ document.querySelectorAll('.edit-note-btn').forEach(button => {
     window.location.href = '/home';
   });
 });
-
-  fetch('/summarize_note', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-    body: JSON.stringify({ content: noteText })
-  }).then(res => res.json())
-    .then(data => {
-      loader.style.display = 'none';
-      if (data.summary) {
-        summaryEl.textContent = data.summary;
-        copyContainer.style.display = 'block'; // show copy button
-      } else {
-        summaryEl.textContent = '❌ Error: Could not summarize.';
-      }
-    }).catch(() => {
-      loader.style.display = 'none';
-      summaryEl.textContent = '❌ Error connecting to summarizer.';
-    });
-}
 document.addEventListener('DOMContentLoaded', function () {
   const notesContainer = document.querySelector('#notes-container .row');
   if (!notesContainer) return;

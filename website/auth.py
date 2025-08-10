@@ -9,9 +9,17 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, login_required, logout_user, current_user
 from dotenv import load_dotenv
 import os
-
+from flask_login import login_user, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+from .models import User, OTP
+from . import db, oauth
+import random
+from datetime import datetime
+import re
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 load_dotenv()
-
 SENDER_EMAIL = os.getenv('SENDER_EMAIL')  # no-reply@noters.online
 SENDER_PASSWORD = os.getenv('SENDER_PASSWORD')  # GoDaddy email password
 SMTP_SERVER = os.getenv('SMTP_SERVER', 'smtp.secureserver.net')
@@ -255,3 +263,93 @@ def resend_otp():
 
     return jsonify({"success": False, "message": "Failed to send OTP"}), 500
 
+# @auth.route('/login/google')
+# def login_google():
+#     redirect_uri = url_for('auth.auth_google_callback', _external=True)
+#     return oauth.google.authorize_redirect(redirect_uri)
+
+# # @auth.route('/auth/google/callback')
+# # def auth_google_callback():
+# #     token = oauth.google.authorize_access_token()
+# #     user_info = oauth.google.parse_id_token(token)
+
+# #     email = user_info.get('email')
+# #     if not email:
+# #         flash("Google login failed: email not available.", category="error")
+# #         return redirect(url_for('auth.login'))
+
+# #     user = User.query.filter_by(email=email).first()
+# #     if not user:
+# #         user = User(email=email,
+# #                     first_name=user_info.get('given_name', ''),
+# #                     password=generate_password_hash(random.token_urlsafe(16)))
+# #         db.session.add(user)
+# #         db.session.commit()
+
+# #     login_user(user)
+# #     flash("Logged in successfully with Google!", category="success")
+# #     return redirect(url_for('views.home'))
+from flask import current_app, redirect, url_for, flash, request
+from flask_login import login_user
+from . import db, oauth
+from .models import User
+
+@auth.route('/login/google')
+def login_google():
+    current_app.logger.debug("Starting Google OAuth login flow")
+    redirect_uri = url_for('auth.google_callback', _external=True)
+    current_app.logger.debug("Redirect URI for Google: %s", redirect_uri)
+    return oauth.google.authorize_redirect(redirect_uri)
+
+@auth.route('/auth/google/callback')
+def google_callback():
+    current_app.logger.debug("Google OAuth callback hit")
+    current_app.logger.debug("Request args: %s", request.args)
+
+    try:
+        token = oauth.google.authorize_access_token()
+        current_app.logger.debug("Access token received: %s", token)
+    except Exception as e:
+        current_app.logger.exception("Token exchange failed: %s", e)
+        flash("Google login failed during token exchange", "error")
+        return redirect(url_for('auth.login'))
+
+    try:
+        user_info = oauth.google.get('userinfo').json()
+        current_app.logger.debug("User info from Google: %s", user_info)
+    except Exception as e:
+        current_app.logger.exception("Failed to fetch userinfo: %s", e)
+        flash("Google login failed during user info retrieval", "error")
+        return redirect(url_for('auth.login'))
+
+    if not user_info:
+        current_app.logger.error("No user_info returned from Google")
+        flash("Google login returned no profile data", "error")
+        return redirect(url_for('auth.login'))
+
+    email = user_info.get('email')
+    google_first = user_info.get('given_name')
+
+    if not email:
+        current_app.logger.error("Google profile missing email")
+        flash("Google did not return an email address", "error")
+        return redirect(url_for('auth.login'))
+
+    # Check if user already exists
+    user = User.query.filter_by(email=email).first()
+
+    if user:
+        if not user.first_name:
+            user.first_name = google_first
+            db.session.commit()
+            current_app.logger.info("Updated first_name for existing user: %s", email)
+    else:
+        user = User(email=email, first_name=google_first, password=None)
+        db.session.add(user)
+        db.session.commit()
+        current_app.logger.info("Created new user from Google login: %s", email)
+
+    login_user(user)
+    current_app.logger.info("Logged in user %s via Google", email)
+
+    return redirect(url_for('views.home'))

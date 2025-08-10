@@ -10,7 +10,7 @@
 {% endif %}
 
 
-<h1 class="text-center">Hey, {{ user.first_name }}</h1>
+<h1 class="text-center">Hey, {{ current_user.first_name if current_user.is_authenticated else 'Guest' }}</h1>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
 <form  method="POST" id="noteForm" action="{{ url_for('views.edit_note', note_id=edit_note.id) if edit_note else url_for('views.home') }}">

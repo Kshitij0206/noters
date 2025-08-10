@@ -59,6 +59,7 @@ from flask import render_template  # or your blueprint import
 
 @views.route('/')
 def intro():
+    
     return render_template('intro.html')
 
 
@@ -70,6 +71,8 @@ def toggle_dark_mode():
 @views.route('/home', methods=['GET', 'POST'])
 @login_required
 def home():
+    from flask import current_app, request
+    current_app.logger.info("endpoint=%s auth=%s", request.endpoint, current_user.is_authenticated)
     if request.method == 'POST':
         note_id = request.form.get('note_id')
         note_text = request.form.get('note')
@@ -279,15 +282,34 @@ def delete_note():
 @views.route('/delete-account', methods=['POST'])
 @login_required
 def delete_account():
-    user = User.query.get(current_user.id)
-    if user:
-        Note.query.filter_by(user_id=user.id).delete()
-        db.session.delete(user)
+    from flask_login import logout_user
+    from flask import current_app
+    print("Delete account route hit")
+    try:
+        email = current_user.email
+        uid = current_user.id
+
+        current_app.logger.debug(f"User {email} requested account deletion.")
+
+        # Delete user's notes first
+        Note.query.filter_by(user_id=uid).delete()
+
+        # Delete the user account
+        db.session.delete(User.query.get(uid))
         db.session.commit()
-        flash('Account deleted successfully!', 'success')
-        return redirect(url_for('auth.logout'))
-    flash('Account deletion failed.', 'error')
-    return redirect(url_for('auth.login'))
+
+        # Log the user out
+        logout_user()
+
+        current_app.logger.info(f"Deleted account for {email}")
+        flash('Your account has been deleted successfully.', 'success')
+        return redirect(url_for('views.home'))
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception(f"Error deleting account for user {current_user.email}")
+        flash('Account deletion failed due to an error.', 'error')
+        return redirect(url_for('views.settings'))
 
 def quill_delta_to_html(data):
     """Convert Quill JSON/dict/plain text into basic HTML."""
@@ -400,15 +422,13 @@ api_key = os.getenv("OPENROUTER_API_KEY")
 @views.route("/summarize_note", methods=["POST"])
 @login_required
 def summarize_note():
-    print("🔑 API Key Loaded:", bool(api_key))
-
     try:
-        # Check API key first
         if not api_key:
             return jsonify({"error": "OpenRouter API key not set in .env"}), 500
 
         data = request.get_json()
         content = data.get("content", "")
+        original_title = data.get("title", "Untitled")
 
         if not content.strip():
             return jsonify({"error": "No content to summarize"}), 400
@@ -419,24 +439,23 @@ def summarize_note():
         }
 
         payload = {
-    "model": "mistralai/mistral-7b-instruct",
-    "messages": [
-        {
-            "role": "system",
-            "content": (
-                "You are a helpful assistant that summarizes notes into short, clear bullet points. "
-                "Keep the summary under half the length of the original text. "
-                "Write in plain language without bold text, numbering, or long sentences. "
-                "Do not add extra commentary or explanations."
-            )
-        },
-        {
-            "role": "user",
-            "content": f"Summarize this:\n\n{content}"
+            "model": "mistralai/mistral-7b-instruct",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a helpful assistant that summarizes notes into short, clear bullet points. "
+                        "Keep the summary under half the length of the original text. "
+                        "Write in plain language without bold text, numbering, or long sentences. "
+                        "Do not add extra commentary or explanations."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": f"Summarize this:\n\n{content}"
+                }
+            ]
         }
-    ]
-}
-
 
         response = requests.post(
             "https://openrouter.ai/api/v1/chat/completions",
@@ -444,33 +463,45 @@ def summarize_note():
             data=json.dumps(payload)
         )
 
-        # Debug logging
-        print("🔹 API Status:", response.status_code)
-        print("🔹 API Response:", response.text)
-
         if response.status_code != 200:
             return jsonify({"error": f"API request failed ({response.status_code})"}), 500
 
         result = response.json()
 
-        # Safe parsing
         summary = ""
         try:
             choices = result.get("choices", [])
             if choices:
                 summary = choices[0].get("message", {}).get("content", "").strip()
         except Exception as e:
-            print("❌ Parsing error:", e)
+            print("Parsing error:", e)
 
         if not summary:
             return jsonify({"error": "No summary generated"}), 500
 
-        return jsonify({"summary": summary})
+        # Create new note with the summary as content
+        new_title = f"Summary for {original_title}"
+
+        # Adjust this based on your Note model field storing content
+        new_note = Note(
+    user_id=current_user.id,
+    title=new_title,
+    data=json.dumps({"ops": [{"insert": summary + "\n"}]})
+)
+        db.session.add(new_note)
+        db.session.commit()
+
+
+        return jsonify({
+            "summary": summary,
+            "new_note_id": new_note.id,
+            "new_note_title": new_title,
+            "success": True
+        })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-from urllib.parse import unquote
 
 
 
@@ -608,11 +639,11 @@ def settings():
     total_notes = Note.query.filter_by(user_id=user.id).count()
 
     if request.method == 'POST':
-        # Update username
-        new_username = request.form.get('username')
-        if new_username and new_username != user.username:
-            # Optionally, add validation for username uniqueness here
-            user.username = new_username
+        # Update first_name
+        new_first_name = request.form.get('first_name')
+        if new_first_name and new_first_name != user.first_name:
+            # Optionally, add validation for first_name uniqueness here
+            user.first_name = new_first_name
 
         # Update dark mode preference
         user.dark_mode = bool(request.form.get('dark_mode'))
