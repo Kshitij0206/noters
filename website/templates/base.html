@@ -62,6 +62,7 @@
         }
 
         body {
+          
           background-color: #f8f9fa;
           color: #212529;
           transition: background-color var(--transition-speed), color var(--transition-speed);
@@ -87,7 +88,7 @@
         .dark-toggle-btn {
           margin-left: 10px;
           cursor: pointer;
-          background-color: #343a40;
+          background-color: black;
           color: white;
           border: none;
           padding: 5px 12px;
@@ -263,50 +264,196 @@
   }
 </style>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-  <a class="navbar-brand" href="{{ url_for('views.home') }}">Noters</a>
-  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" 
-          aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-    <span class="navbar-toggler-icon"></span>
-  </button>
 
-  <div class="collapse navbar-collapse" id="navbarNav">
-    <ul class="navbar-nav ml-auto">
-      {% if current.is_authenticated %}
-        {# Show nav links even on login/signup pages for logged in users #}
-        {% if not hide_home %}
-          <li class="nav-item {% if request.endpoint == 'views.home' %}active{% endif %}">
-            <a class="nav-link" href="{{ url_for('views.home') }}">Home</a>
-          </li>
-        {% endif %}
-         {% if request.endpoint != 'views.settings' %}
-    <li class="nav-item">
-      <a class="nav-link" href="{{ url_for('views.settings') }}">Settings</a>
-    </li>
+
+  <!-- Sidebar -->
+<style>
+/* Full height body */
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+/* Sidebar base */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 60px;             /* collapsed width */
+  height: 100vh;
+  background-color: #343a40;
+  color: #fff;
+  overflow: hidden;
+  transition: width 0.3s ease;
+  padding-top: 20px;
+  z-index: 1000;
+}
+
+/* Sidebar expanded */
+.sidebar.expanded {
+  width: 220px;
+}
+
+/* Sidebar links */
+.sidebar a {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-decoration: none;
+  color: #ccc;
+  padding: 10px 15px;
+  transition: all 0.3s ease;
+  border-radius: 5px;
+}
+
+/* Icon inside link */
+.sidebar a i {
+  font-size: 18px;
+  min-width: 24px;
+  margin-right: 10px;
+}
+
+/* Hide link text when collapsed */
+.sidebar:not(.expanded) a span {
+  display: none;
+}
+
+/* Hover / active state */
+.sidebar a:hover,
+.sidebar a.active {
+  background-color: rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+/* Sidebar brand */
+.sidebar .sidebar-brand {
+  font-size: 1.5rem;
+  font-weight: bold;
+  padding: 0 20px 20px 20px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+}
+
+/* Dark mode */
+body.dark-mode .sidebar {
+  background-color: #1f1f1f;
+}
+body.dark-mode .sidebar a {
+  color: #ccc;
+}
+body.dark-mode .sidebar a:hover,
+body.dark-mode .sidebar a.active {
+  background-color: rgba(255,255,255,0.15);
+  color: #fff;
+}
+
+/* Main wrapper shifts */
+.main-wrapper {
+  margin-left: 60px;
+  transition: margin-left 0.3s ease;
+  padding: 20px;
+}
+.main-wrapper.shifted {
+  margin-left: 220px;
+}
+
+
+
+/* Make dark mode button look like other sidebar links */
+.sidebar a.sidebar-link {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  text-decoration: none;
+  color: #ccc;
+  padding: 10px 15px;
+  border-radius: 5px;
+  transition: all 0.3s ease;
+}
+
+.sidebar a.sidebar-link:hover {
+  background-color: rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+/* Hide text when collapsed, like other links */
+.sidebar:not(.expanded) a.sidebar-link span {
+  display: none;
+}
+
+</style>
+<div class="sidebar" id="sidebar">
+  <!-- Sidebar toggle button -->
+  <button id="sidebarToggle" style="margin: 10px; background: none; border: none; color: #fff; font-size: 20px; cursor: pointer;">☰</button>
+
+  {% if current.is_authenticated %}
+    <a href="{{ url_for('views.home') }}" class="sidebar-brand">
+      <img src="{{ url_for('static', filename='logo.png') }}" alt="Noters Logo" style="height:50px; width:50px; position: relative;right:18px;">
+  <span>Noters</span>
+    </a>
+  {% else %}
+    <a href="{{ url_for('views.intro') }}" clhome"sidebar-brand">
+      <img src="{{ url_for('static', filename='logo.png') }}" alt="Noters Logo" style="height:50px; width:50px; position: relative;left:20px;" > <span>Noters</span>
+    </a>
   {% endif %}
-        {% if not hide_saved_notes %}
-          <li class="nav-item {% if request.endpoint == 'views.saved_notes' %}active{% endif %}">
-            <a class="nav-link" href="{{ url_for('views.saved_notes') }}">Saved Notes</a>
-          </li>
-        {% endif %}
-        <li class="nav-item">
-          <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
-        </li>
-      {% else %}
-        {% if request.endpoint != 'auth.login' %}
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
-          </li>
-        {% endif %}
-        {% if request.endpoint != 'auth.sign_up' %}
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('auth.sign_up') }}">Sign Up</a>
-          </li>
-        {% endif %}
-      {% endif %}
-    </ul>
-  </div>
-</nav>
+
+  {% if not hide_help %}
+    <a href="{{ url_for('views.help') }}" class="{% if request.endpoint == 'views.help' %}active{% endif %}">
+      <img src="{{ url_for('static', filename='question.png') }}" alt="Noters Logo" style="height:25px; width:25px;" > <span> Help</span>
+    </a>
+  {% endif %}
+
+  {% if current.is_authenticated %}
+    {% if not hide_home %}
+      <a href="{{ url_for('views.home') }}" class="{% if request.endpoint == 'views.home' %}active{% endif %}">
+        <img src="{{ url_for('static', filename='home.png') }}" alt="Noters Logo" style="height:25px; width:25px;" > <span> Home</span>
+      </a>
+    {% endif %}
+
+    {% if request.endpoint != 'views.settings' %}
+      <a href="{{ url_for('views.settings') }}">
+        <img src="{{ url_for('static', filename='setting.png') }}" alt="Noters Logo" style="height:25px; width:25px;" ><span> Settings</span>
+      </a>
+    {% endif %}
+
+    {% if not hide_saved_notes %}
+      <a href="{{ url_for('views.saved_notes') }}" class="{% if request.endpoint == 'views.saved_notes' %}active{% endif %}">
+        <img src="{{ url_for('static', filename='wallet.png') }}" alt="Noters Logo" style="height:25px; width:25px; "> <span> Saved Notes</span>
+      </a>
+    {% endif %}
+
+    <a href="{{ url_for('auth.logout') }}">
+      <img src="{{ url_for('static', filename='logout.png') }}" alt="Noters Logo" style="height:25px; width:25px; " ><span> Logout</span>
+    </a>
+
+  {% else %}
+    {% if request.endpoint != 'auth.login' %}
+      <a href="{{ url_for('auth.login') }}">
+        <img src="{{ url_for('static', filename='enter.png') }}" alt="Noters Logo" style="height:25px; width:25px;"> <span>Login</span>
+      </a>
+    {% endif %}
+    {% if request.endpoint != 'auth.sign_up' %}
+      <a href="{{ url_for('auth.sign_up') }}">
+        <img src="{{ url_for('static', filename='add-user.png') }}" alt="Noters Logo" style="height:25px; width:25px; ">
+
+    
+  {% endif %}
+  {%endif%}
+  <a href="javascript:void(0);" id="toggleDarkSettings" class="sidebar-link">
+  <img id="darkIcon" src="{{ url_for('static', filename='night-mode.png') }}" alt="Dark Mode" style="height:25px; width:25px;">
+  <span>Dark Mode</span>
+</a>
+
+
+</div>
+
+<!-- Add Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+
+
 
 
       <!-- Toast Notification for Flash Messages -->
@@ -366,10 +513,31 @@
           {% endfor %}
         {% endif %}
       {% endwith %}
+    // Dark mode toggle
+    const btn = document.getElementById("toggleDarkSettings");
+const icon = document.getElementById("darkIcon");
+
+// Set initial theme
+if (localStorage.getItem("theme") === "dark") {
+  document.body.classList.add("dark-mode");
+  icon.src = "{{ url_for('static', filename='sun.png') }}";
+} else {
+  icon.src = "{{ url_for('static', filename='night-mode.png') }}";
+}
+
+// Toggle dark mode on click
+btn.addEventListener("click", () => {
+  const isDark = document.body.classList.toggle("dark-mode");
+  icon.src = isDark 
+    ? "{{ url_for('static', filename='sun.png') }}" 
+    : "{{ url_for('static', filename='night-mode.png') }}";
+  localStorage.setItem("theme", isDark ? "dark" : "light");
+});
+
       </script>
 
       <!-- Main Content -->
-      <div class="container mt-4">
+      <div class="container mt-4 main-content main-wrapper">
         <div class="container mt-4 page-transition">
         {% block content %}{% endblock %}
       </div>
@@ -404,11 +572,16 @@
             });
           }
         });
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-  // Send request to backend to enable dark mode in session or toggle class on body
-  document.body.classList.add('dark-mode');
-}
+        document.addEventListener("DOMContentLoaded", () => {
+        const toggleBtn = document.getElementById("sidebarToggle");
+const sidebar = document.querySelector(".sidebar");
+const mainWrapper = document.querySelector(".main-wrapper");
 
+toggleBtn.addEventListener("click", () => {
+  sidebar.classList.toggle("expanded");
+  mainWrapper.classList.toggle("shifted");
+});
+        });
       </script>
       <!-- Footer -->
   <footer class="footer mt-5">
@@ -423,6 +596,7 @@
       </p>
     </div>
   </footer>
+</div>
 
   <style>
   /* Footer styling */

@@ -294,7 +294,7 @@ from flask_login import login_user
 from . import db, oauth
 from .models import User
 
-@auth.route('/login/google')
+@auth.route('/login/google',endpoint='login_google')
 def login_google():
     current_app.logger.debug("Starting Google OAuth login flow")
     redirect_uri = url_for('auth.google_callback', _external=True)

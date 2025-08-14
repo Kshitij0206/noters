@@ -29,7 +29,7 @@
 <div class="container" id="notes-container">
   <div class="row">
     {% for note in notes %}
-      <div class="col-md-6 mb-4 note-card" data-tags="{{ note.tags | default('') }}" data-note-id="{{ note.id }}" style="background-color: {{note.bg_color or white}};">
+      <div class="col-md-6 mb-4 note-card" data-tags="{{ note.tags | default('') }}" data-note-id="{{ note.id }}" data-id="{{ note.id }}" style="background-color: {{note.bg_color or white}};">
 
   <div class="p-3 shadow-sm rounded position-relative fullscreen-note" 
        id="note-{{ note.id }}"
@@ -334,52 +334,87 @@ function showActionToast(message) {
 </script>
 
 <script>
-// Summarize Note
-function summarizeNote(noteId) {
-  const note = window.savedNotes.find(n => n.id === noteId);
-  if (!note) return;
+  function getNoteContentById(noteId) {
+  const noteCard = document.querySelector(`.note-card[data-id="${noteId}"]`);
+  if (!noteCard) return null;
 
-  const loader = document.getElementById(`loader-${noteId}`);
-  const summaryEl = document.getElementById(`summary-${noteId}`);
-  const copyContainer = document.getElementById(`copy-summary-container-${noteId}`);
-
-  loader.style.display = 'block';
-  summaryEl.textContent = '';
-  copyContainer.style.display = 'none'; // hide before new summary
-
-  // Extract plain text from Quill ops
-  let noteText = '';
-  if (note.data && note.data.ops) {
-    note.data.ops.forEach(op => {
-      if (typeof op.insert === 'string') noteText += op.insert;
-    });
+  // If content is stored in data-content attribute
+  const deltaString = noteCard.dataset.content;
+  if (deltaString) {
+    try {
+      const delta = JSON.parse(deltaString);
+      const tempQuill = new Quill(document.createElement("div")); // create temp editor
+      tempQuill.setContents(delta);
+      return tempQuill.getText().trim(); // plain text
+    } catch (e) {
+      console.error("Error parsing note delta:", e);
+    }
   }
 
+  // Fallback to visible text if exists
+  const contentEl = noteCard.querySelector('.note-content');
+  return contentEl ? contentEl.textContent.trim() : null;
+}
+
+
+// Summarize Note
+function summarizeNote(noteId) {
+  const plainText = quill.getText(); // Extracts clean text
+  // Assuming you have a way to get the note content from your page or via an API
+  const noteContent = getNoteContentById(noteId); // implement this!
+
+  if (!noteContent) {
+    alert("No content found for this note.");
+    return;
+  }
+
+  const loader = document.getElementById(`loader-${noteId}`);
+  if (loader) loader.style.display = 'block';
+
   fetch('/summarize_note', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ content: noteText, title: note.title })
-})
-  .then(response => response.json())
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      content: noteContent,
+      title: `Note #${noteId}`
+    })
+  })
+  .then(res => res.json())
   .then(data => {
-    loader.style.display = 'none';
-
-    if (data.summary) {
-      summaryEl.textContent = data.summary;
-      copyContainer.style.display = 'block'; // show copy button if you have one
-
-      alert(`Summary created as new note: "${data.new_note_title}"`);
-      // Optional: redirect to the new note page
-      // window.location.href = `/note/${data.new_note_id}`;
-    } else {
-      summaryEl.textContent = 'Error: ' + (data.error || 'Could not generate summary.');
+    if (loader) loader.style.display = 'none';
+    if (data.error) {
+      alert("Error: " + data.error);
+      return;
     }
+    console.log("Summary:", data.summary);
+    // Optionally update UI with new summary note info, e.g.:
+    addNewNoteCard(data.new_note_id, data.new_note_title);
+    window.location.reload();
   })
   .catch(err => {
-    loader.style.display = 'none';
-    summaryEl.textContent = 'Error connecting to summarizer.';
-    console.error(err);
+    if (loader) loader.style.display = 'none';
+    console.error("Fetch error:", err);
   });
+}
+
+
+
+// Helper to add a new note card without reloading
+function addNewNoteCard(id, title) {
+    const notesContainer = document.getElementById('notes-container');
+
+    const noteCard = document.createElement('div');
+    noteCard.classList.add('note-card');
+    noteCard.dataset.id = id;
+
+    noteCard.innerHTML = `
+        <h3>${title}</h3>
+        <button class="view-note">View</button>
+        <button class="edit-note">Edit</button>
+        <button class="delete-note">Delete</button>
+    `;
+
+    notesContainer.prepend(noteCard);
 }
 document.querySelectorAll('.edit-note-btn').forEach(button => {
   button.addEventListener('click', function (e) {
@@ -464,6 +499,18 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <style>
+  body.dark-mode .note-card {
+    background-color: #1e1e1e !important; /* dark card */
+    color: white !important;
+}
+body.dark-mode .note-content {
+    color: white !important;
+}
+
+  *
+  {
+    
+  }
   /* === DARK MODE SUPPORT FOR NOTE PREVIEW === */
 body.dark-mode .note-card .fullscreen-note {
   border: 1px solid #444;
@@ -696,7 +743,58 @@ body.dark-mode .note-card h5 {
     opacity: 0;
     transform: scale(0.95);
   }
+}/* === Layout for notes container === */
+#notes-container .row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* same size as before */
+  justify-content: center; /* prevents them from stretching too far apart */
+  min-width: 90rem;
+  
 }
+
+body
+{
+  overflow-x: hidden;
+}
+
+/* === Note card sizing & preview look === */
+.note-card {
+  background-color: #f9f9f9;
+  border-radius: 1px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+  padding: 1px;
+  min-height: 250px;  /* ensures readable height */
+  max-height: 400px;  /* prevents overly tall cards */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.note-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+/* === Dark mode support === */
+body.dark-mode .note-card {
+  background-color: #222;
+  color: #eee;
+}
+
+/* === Pinned notes get more prominence === */
+.note-card.pinned {
+  border: 2px solid #f0b400;
+  background-color: #fff9e6;
+  transform: scale(1.04);
+}
+
+body.dark-mode .note-card.pinned {
+  border-color: #ffd84d;
+  background-color: #3a2f00;
+}
+
 
 </style>
 <script>

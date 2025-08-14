@@ -59,7 +59,6 @@ from flask import render_template  # or your blueprint import
 
 @views.route('/')
 def intro():
-    
     return render_template('intro.html')
 
 
@@ -360,6 +359,10 @@ def quill_delta_to_html(data):
     except Exception as e:
         print("❌ Error parsing Quill HTML:", e)
         return "<p>[Error reading note content]</p>"
+from flask import send_file, flash, redirect, url_for
+from flask_login import login_required, current_user
+from bs4 import BeautifulSoup
+import io, html
 
 @views.route('/download-pdf/<int:note_id>')
 @login_required
@@ -369,10 +372,16 @@ def download_pdf(note_id):
         flash("You do not have permission to download this note.", "error")
         return redirect(url_for("views.saved_notes"))
 
-    bg_color = note.bg_color or "white"
-    note_html = quill_delta_to_html(note.data)  # ensure this returns safe HTML
+    # Clean background color
+    bg_color = note.bg_color if note.bg_color and note.bg_color != "default" else "white"
 
-    html = f"""
+    # Convert Quill delta to HTML and clean bad tags
+    raw_html = quill_delta_to_html(note.data)
+    soup = BeautifulSoup(raw_html, "html.parser")
+    note_html = soup.prettify()
+
+    # Build full HTML
+    html_content = f"""
     <html>
     <head>
       <style>
@@ -385,22 +394,34 @@ def download_pdf(note_id):
       </style>
     </head>
     <body>
-      <h2>{note.title}</h2>
+      <h2>{html.escape(note.title or "Untitled Note")}</h2>
       <div class="note-content">{note_html}</div>
     </body>
     </html>
     """
 
+    # Generate PDF
     result = io.BytesIO()
-    pisa_status = pisa.CreatePDF(src=html, dest=result)
+    pisa_status = pisa.CreatePDF(src=html_content, dest=result)
 
     if pisa_status.err:
-        flash("Error generating PDF.", "error")
+        print("Pisa errors:", pisa_status.err)
+        print("Full pisa log:", pisa_status.log)
+        flash("Error generating PDF. Check server logs.", "error")
         return redirect(url_for("views.saved_notes"))
 
     result.seek(0)
-    return send_file(result, download_name=f"{note.title}.pdf", as_attachment=True)
 
+    # Debug output
+    print("NOTE TITLE:", note.title)
+    print("NOTE HTML:", repr(note_html))
+    print("FINAL HTML:", html_content)
+
+    return send_file(
+        result,
+        download_name=f"{(note.title or 'note').replace(' ', '_')}.pdf",
+        as_attachment=True
+    )
 @views.route("/get-note/<int:note_id>")
 @login_required
 def get_note(note_id):
@@ -416,6 +437,13 @@ def get_note(note_id):
         "note_html": note.data or ""
     })
 
+from flask import request, jsonify
+from flask_login import login_required, current_user
+from dotenv import load_dotenv
+import os, json, requests
+from .models import Note
+from . import db
+
 load_dotenv()
 api_key = os.getenv("OPENROUTER_API_KEY")
 
@@ -423,87 +451,103 @@ api_key = os.getenv("OPENROUTER_API_KEY")
 @login_required
 def summarize_note():
     try:
-        if not api_key:
-            return jsonify({"error": "OpenRouter API key not set in .env"}), 500
+        print("\n=== Summarize Note Request Started ===")
 
+        # Load API key
+        if not api_key:
+            print("ERROR: OpenRouter API key not found in .env or not loaded")
+            return jsonify({"error": "OpenRouter API key not set in .env"}), 500
+        print("✅ API key loaded")
+
+        # Get incoming data
         data = request.get_json()
+        print("Incoming request data:", data)
+
         content = data.get("content", "")
         original_title = data.get("title", "Untitled")
 
         if not content.strip():
+            print("ERROR: No content to summarize")
             return jsonify({"error": "No content to summarize"}), 400
+        print(f"Content length: {len(content)} characters")
 
+        # Prepare API call
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
         }
 
         payload = {
-            "model": "mistralai/mistral-7b-instruct",
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a helpful assistant that summarizes notes into short, clear bullet points. "
-                        "Keep the summary under half the length of the original text. "
-                        "Write in plain language without bold text, numbering, or long sentences. "
-                        "Do not add extra commentary or explanations."
-                    )
-                },
-                {
-                    "role": "user",
-                    "content": f"Summarize this:\n\n{content}"
-                }
-            ]
+    "model": "mistralai/mistral-7b-instruct",
+    "temperature": 0.2,  # Lower = more consistent, less creative drift
+    "max_tokens": 300,   # Limit to keep under half original size
+    "messages": [
+        {
+            "role": "system",
+            "content": (
+                "Summarize the provided note in short, clear bullet points. "
+                "Limit length to no more than half of the original. "
+                "Use plain, simple language. "
+                "Avoid formatting, numbering, or extra commentary."
+            )
+        },
+        {
+            "role": "user",
+            "content": content.strip()
         }
+    ]
+}
 
+
+        print("Sending request to OpenRouter API...")
         response = requests.post(
             "https://openrouter.ai/api/v1/chat/completions",
             headers=headers,
             data=json.dumps(payload)
         )
 
+        print(f"API Response status code: {response.status_code}")
+        try:
+            print("Raw API Response:", response.text)
+        except Exception:
+            print("⚠ Could not print raw response (non-text content)")
+
         if response.status_code != 200:
-            return jsonify({"error": f"API request failed ({response.status_code})"}), 500
+            return jsonify({"error": f"API request failed ({response.status_code})", "details": response.text}), 500
 
         result = response.json()
+        print("Parsed API JSON:", json.dumps(result, indent=2))
 
-        summary = ""
-        try:
-            choices = result.get("choices", [])
-            if choices:
-                summary = choices[0].get("message", {}).get("content", "").strip()
-        except Exception as e:
-            print("Parsing error:", e)
-
+        # Extract summary safely
+        summary = result.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
         if not summary:
-            return jsonify({"error": "No summary generated"}), 500
+            print("ERROR: No summary generated by API")
+            return jsonify({"error": "No summary generated", "details": result}), 500
+        print("✅ Summary generated successfully")
 
-        # Create new note with the summary as content
+        # Save new note with the actual summary
         new_title = f"Summary for {original_title}"
-
-        # Adjust this based on your Note model field storing content
         new_note = Note(
-    user_id=current_user.id,
-    title=new_title,
-    data=json.dumps({"ops": [{"insert": summary + "\n"}]})
-)
+            user_id=current_user.id,
+            title=new_title,
+            data=json.dumps({"ops": [{"insert": summary + "\n"}]})
+        )
         db.session.add(new_note)
         db.session.commit()
+        print(f"✅ Summary note saved with ID {new_note.id}")
 
-
+        print("=== Summarize Note Request Completed ===\n")
         return jsonify({
-            "summary": summary,
+            "success": True,
+            "summary": summary,  # For popup display
             "new_note_id": new_note.id,
             "new_note_title": new_title,
-            "success": True
+            "new_note_content": summary
         })
 
     except Exception as e:
+        print("🔥 UNCAUGHT SERVER ERROR:", str(e))
         return jsonify({"error": str(e)}), 500
-
-
-
 
 @views.route("/privacy")
 def privacy():
@@ -758,3 +802,6 @@ from flask import send_from_directory
 @views.route('/robots.txt')
 def robots_txt():
     return send_from_directory('static', 'robots.txt')
+@views.route('/help')
+def help():
+    return render_template('help.html')

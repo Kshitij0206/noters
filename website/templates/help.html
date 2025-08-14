@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Help & FAQ - Noters{% endblock %}
+{% set hide_help = true %}
+{% block content %}
+<div class="container py-5">
+    <h1 class="mb-4">Help & Frequently Asked Questions</h1>
+    <p class="lead">Find answers to common questions about Noters.online. If you can’t find your answer here, email us at <a href="mailto:support@noters.online">support@noters.online</a>.</p>
+    <hr>
+
+    <h2 class="mt-4">General</h2>
+    <ol>
+        <li><strong>What is Noters.online?</strong> — A cloud-based note-taking app with advanced features like tags, pinning, voice-to-text, and more.</li>
+        <li><strong>Is Noters.online free?</strong> — Yes, the core features are free. Premium features may be added later.</li>
+        <li><strong>Do I need to sign up to use it?</strong> — You can use guest mode, but logging in with Google unlocks syncing and extra features.</li>
+        <li><strong>Does it work on mobile?</strong> — Yes, it’s fully responsive and mobile-friendly.</li>
+        <li><strong>Which browsers are supported?</strong> — Latest versions of Chrome, Edge, Firefox, and Safari.</li>
+        <li><strong>Can I use it on a tablet?</strong> — Yes, the layout adapts to all screen sizes.</li>
+        <li><strong>Does Noters have an app?</strong> — Not yet, but it’s planned for future releases.</li>
+    </ol>
+
+    <h2 class="mt-4">Creating & Managing Notes</h2>
+    <ol start="8">
+        <li><strong>How do I create a new note?</strong> — Click the “New Note” button and start typing.</li>
+        <li><strong>How do I edit an existing note?</strong> — Open the note from “Saved Notes” and click “Edit”.</li>
+        <li><strong>Can I change a note’s background color?</strong> — Yes, use the background color picker in the editor.</li>
+        <li><strong>How do I pin a note?</strong> — Click the 📌 icon next to the note.</li>
+        <li><strong>Can I tag notes?</strong> — Yes, enter tags in the “Tags” field when creating or editing a note.</li>
+        <li><strong>How do I search notes by tags?</strong> — Use the tag filter in “Saved Notes”.</li>
+        <li><strong>Can I sort notes?</strong> — Yes, by date, title, or pinned status.</li>
+        <li><strong>Is drag-and-drop supported?</strong> — Yes, in “Saved Notes” you can reorder notes manually.</li>
+        <li><strong>How do I delete a note?</strong> — Click the 🗑️ icon and confirm deletion.</li>
+    </ol>
+
+    <h2 class="mt-4">Advanced Features</h2>
+    <ol start="17">
+        <li><strong>Can I export notes as PDF?</strong> — Yes, click “Download as PDF” on the note page.</li>
+        <li><strong>How do I enable dark mode?</strong> — Toggle the 🌙 icon in the top-right corner to switch themes instantly.</li>
+        <li><strong>Does Noters have voice-to-text?</strong> — Yes, click the 🎤 icon in the editor.</li>
+        <li><strong>Can I lock notes?</strong> — Yes, set a password when creating or editing a note.</li>
+        <li><strong>Is there version history?</strong> — Yes, you can view and restore older versions of a note.</li>
+        <li><strong>Can I upload images in notes?</strong> — Yes, use the “Insert Image” option in the editor.</li>
+        <li><strong>Does Noters summarize notes?</strong> — Yes, click “Summarize” to generate a condensed version.</li>
+        <li><strong>Can I format text?</strong> — Yes, using the built-in toolbar for headings, bold, italics, and more.</li>
+    </ol>
+
+    <h2 class="mt-4">Account & Login</h2>
+    <ol start="25">
+        <li><strong>How do I log in?</strong> — Use “Continue with Google” for quick access.</li>
+        <li><strong>Can I change my email?</strong> — Not currently; email support for changes.</li>
+        <li><strong>What if I forget my password?</strong> — We use Google login, so reset your password via Google.</li>
+        <li><strong>Can I delete my account?</strong> — Yes, email <a href="mailto:support@noters.online">support@noters.online</a>.</li>
+        <li><strong>Is my data private?</strong> — Yes, we use encryption and never sell your data.</li>
+        <li><strong>Can I sync across devices?</strong> — Yes, when logged in with Google.</li>
+        <li><strong>How do I log out?</strong> — Click your profile icon and select “Logout”.</li>
+        <li><strong>Can I have multiple accounts?</strong> — Yes, but each requires a different Google login.</li>
+        <li><strong>Will my notes be deleted if I log out?</strong> — No, they remain saved in your account.</li>
+        <li><strong>Does Noters support two-factor authentication?</strong> — Not yet, but it’s planned.</li>
+    </ol>
+
+    <h2 class="mt-4">Troubleshooting</h2>
+    <ol start="35">
+        <li><strong>Notes are not saving!</strong> — Check your internet connection.</li>
+        <li><strong>Dark mode isn’t working?</strong> — Make sure your browser supports CSS variables and that localStorage is enabled. Try refreshing after toggling.</li>
+        <li><strong>Voice-to-text is not responding?</strong> — Allow microphone permissions in your browser.</li>
+        <li><strong>Images won’t upload?</strong> — Ensure the file is under 5MB and in JPG/PNG format.</li>
+        <li><strong>Tags aren’t showing?</strong> — Ensure you save after adding tags.</li>
+        <li><strong>PDF download is blank?</strong> — Refresh and try again; large notes may take time.</li>
+        <li><strong>Site looks broken?</strong> — Clear browser cache or try incognito mode.</li>
+        <li><strong>Editor toolbar is missing?</strong> — Refresh the page; scripts may not have loaded.</li>
+    </ol>
+
+    <h2 class="mt-4">Contact</h2>
+    <p>Still stuck? Contact us at <a href="mailto:support@noters.online">support@noters.online</a> or visit our <a href="/contact">Contact Page</a>.</p>
+</div>
+{% endblock %}

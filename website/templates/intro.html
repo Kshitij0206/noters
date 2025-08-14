@@ -9,7 +9,7 @@
     body, html {
       margin: 0; padding: 0; height: 100%;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #667eea, #764ba2);
+      background: linear-gradient(135deg,#0c88d5 ,#1588b5 );
       color: white;
       overflow-x: hidden;
       display: flex;
@@ -46,7 +46,7 @@
       transition: color 0.3s ease;
     }
     p:hover {
-      color: #ffd700;
+      color: #d56d36;
     }
     .btn {
       display: inline-block;
@@ -121,23 +121,29 @@
       100% { background-position: 0% 50%; }
     }
     body {
-      background: linear-gradient(270deg, #667eea, #764ba2, #6b8dd6, #8b6bb2);
+      /* background: linear-gradient(270deg, #667eea, #764ba2, #6b8dd6, #8b6bb2); */
+      background: linear-gradient(135deg,#0c88d5 ,#1588b5,#45b6d4,#b2e7eb );
       background-size: 800% 800%;
       animation: bgShift 15s ease infinite;
     }
+    @media (max-width: 600px) {
+  h1 { font-size: 2.5rem; }
+  p { font-size: 1.1rem; }
+  .btn { padding: 0.8em 1.5em; font-size: 0.95rem; }
+}
 
     /* New detailed description */
     .details {
       max-width: 700px;
       font-size: 1.15rem;
       line-height: 1.6;
-      color: #ffec99;
+      color: #d8572f;
       margin-bottom: 3em;
       text-shadow: 0 0 8px rgba(255, 236, 153, 0.7);
       transition: color 0.3s ease;
     }
     .details:hover {
-      color: #fff3bf;
+      color: #f6b267;
     }
 
     /* Footer */
@@ -201,7 +207,7 @@ a:focus {
 </head>
 <body>
     <main>
-        <h1>Welcome to <span style="color:#ffd700;">Noters Online</span> 👋</h1>
+        <h1>Welcome to <span style="color:#fdf6e3;">Noters Online</span> </h1>
         <p>Your powerful, fast, and intuitive online note-taking app — completely free. Capture ideas, organize thoughts, and get things done effortlessly with seamless cloud syncing.</p>
 
 <a href="/sign-up" class="btn">Get Started 🚀</a>

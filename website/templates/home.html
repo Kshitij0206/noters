@@ -510,7 +510,8 @@ form#noteForm:fullscreen #editor-container {
         const delta = JSON.parse(window.editNote.data);
         quill.setContents(delta);
       } catch (e) {
-        quill.root.innerHTML = window.editNote.data;
+        quill.clipboard.dangerouslyPasteHTML(window.editNote.data);
+
       }
       document.getElementById('note_id').value = window.editNote.id || '';
       document.getElementById('note-title').value = window.editNote.title || '';
@@ -764,86 +765,31 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    function autosaveNote() {
-        clearTimeout(saveTimeout);
-        saveTimeout = setTimeout(() => {
-            const form = document.getElementById("saveNoteForm");
-            const formData = new FormData(form);
-            formData.set("note", quillEditor.root.innerHTML);
-
-            showSaving("Saving...");
-
-            fetch("/save_note", {
-                method: "POST",
-                body: formData
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    showSaving("Saved");
-                } else {
-                    showSaving("Error");
-                }
-            })
-            .catch(() => {
-                showSaving("Error");
-            });
-        }, 1500); // 1.5s debounce
+    function getRandomColor() {
+      // You can customize this palette
+      const colors = ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff', '#a0c4ff', '#bdb2ff', '#ffc6ff'];
+      return colors[Math.floor(Math.random() * colors.length)];
     }
 
-    // Listen for typing in title and editor
-    titleInput.addEventListener("input", autosaveNote);
-    quillEditor.on("text-change", autosaveNote);
+    // Example usage (uncomment and adapt as needed):
+    // if (bgColor && bgColor.trim() !== '') {
+    //   editor.style.backgroundColor = bgColor;
+    // } else {
+    //   editor.style.backgroundColor = getRandomColor();
+    // }
+
 });
-let autosaveTimeout;
-const AUTOSAVE_INTERVAL = 2000; // ms after user stops typing
-
-function triggerAutosave() {
-    clearTimeout(autosaveTimeout);
-    autosaveTimeout = setTimeout(() => {
-        const title = document.getElementById("note-title").value;
-        const noteContent = quill.root.innerHTML;
-
-        if (!title.trim() && !noteContent.trim()) return; // skip empty
-
-        fetch("/save_note", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                title: title,
-                note: noteContent,
-                is_autosave: true // 🚀 mark as autosave
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (!data.success) {
-                console.error("Autosave failed:", data.message);
-            }
-        })
-        .catch(err => console.error("Autosave error:", err));
-    }, AUTOSAVE_INTERVAL);
-}
-
-// Trigger autosave when typing
-document.getElementById("note-title").addEventListener("input", triggerAutosave);
-quill.on("text-change", triggerAutosave);
-const bgColor = "{{ edit_note.bg_color if edit_note else '' }}";
-
-const editor = document.querySelector('#editor-container .ql-editor');
-
-function getRandomColor() {
-  // You can customize this palette
-  const colors = ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff', '#a0c4ff', '#bdb2ff', '#ffc6ff'];
-  return colors[Math.floor(Math.random() * colors.length)];
-}
-
-if (bgColor && bgColor.trim() !== '') {
-  editor.style.backgroundColor = bgColor;
-} else {
-  editor.style.backgroundColor = getRandomColor();
-}
-
+</script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const noteContentDiv = document.getElementById("note-content");
+    if (noteContentDiv) {
+        const content = noteContentDiv.innerHTML.trim();
+        if (content) {
+            quill.root.innerHTML = content; // loads the note into Quill
+        }
+    }
+});
 </script>
 
 
